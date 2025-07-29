@@ -8,12 +8,17 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "fastapi[standard] (>=0.116.1,<0.117.0)"
+    "fastapi[standard] (>=0.116.1,<0.117.0)",
+    "psycopg2 (>=2.9.10,<3.0.0)",
+    "dotenv (>=0.9.9,<0.10.0)",
+    "openai (>=1.97.1,<2.0.0)"
 ]
 
 [tool.poetry]
 packages = [{include = "gent_disagreement_rag", from = "src"}]
 
+[tool.poetry.scripts]
+start = "uvicorn gent_disagreement_rag.main:app --host 0.0.0.0 --port 8000"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
