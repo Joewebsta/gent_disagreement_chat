@@ -1,4 +1,5 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from .core import RAGService
 
 app = FastAPI()
@@ -23,9 +24,11 @@ async def health_check():
 
 
 @app.post("/api/v1/chat")
-async def chat():
+async def chat(request: Request):
+    data = await request.json()
     rag_service = RAGService()
-    response = rag_service.ask_question("Was Elon Musk mentioned?")
+    user_text = data["versions"][0]["content"]
+    response = rag_service.ask_question(user_text)
     return {"message": response}
 
 
