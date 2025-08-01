@@ -71,7 +71,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-const messages: {
+type Message = {
   from: "user" | "assistant";
   sources?: { href: string; title: string }[];
   versions: {
@@ -92,7 +92,9 @@ const messages: {
   }[];
   avatar: string;
   name: string;
-}[] = [
+};
+
+const initialMessages: Message[] = [
   {
     from: "user",
     versions: [
@@ -161,6 +163,7 @@ const suggestions = [
   "How does machine learning work?",
 ];
 function App() {
+  const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [model, setModel] = useState<string>(models[0].id);
   const [text, setText] = useState<string>("");
   const [useWebSearch, setUseWebSearch] = useState<boolean>(false);
@@ -168,31 +171,74 @@ function App() {
   const [status, setStatus] = useState<
     "submitted" | "streaming" | "ready" | "error"
   >("ready");
-  const handleSubmit: FormEventHandler<HTMLFormElement> = (event) => {
+
+  const handleSubmit: FormEventHandler<HTMLFormElement> = async (event) => {
     event.preventDefault();
+
     if (!text) {
       return;
     }
+
+    const newMessage: Message = {
+      from: "user",
+      versions: [
+        {
+          id: Date.now().toString(),
+          content: text,
+        },
+      ],
+      avatar: "https://github.com/haydenbleasel.png",
+      name: "User",
+    };
+
+    setMessages((prev) => [...prev, newMessage]);
+    setText("");
+
     toast.success("Message submitted", {
       description: text,
     });
+
     setStatus("submitted");
     setTimeout(() => {
       setStatus("streaming");
     }, 200);
+
+    const response = await fetch("http://localhost:8000/api/v1/chat", {
+      method: "POST",
+      body: JSON.stringify(newMessage),
+    });
+
+    const data = await response.json();
+
+    const assistantMessage: Message = {
+      from: "assistant",
+      versions: [
+        {
+          id: Date.now().toString(),
+          content: data.message,
+        },
+      ],
+      avatar: "https://github.com/openai.png",
+      name: "OpenAI",
+    };
+    setMessages((prev) => [...prev, assistantMessage]);
+
     setTimeout(() => {
       setStatus("ready");
     }, 2000);
   };
+
   const handleFileAction = (action: string) => {
     toast.success("File action", {
       description: action,
     });
   };
+
   const handleSuggestionClick = (suggestion: string) => {
     toast.success("Suggestion clicked", {
       description: suggestion,
     });
+
     setStatus("submitted");
     setTimeout(() => {
       setStatus("streaming");
