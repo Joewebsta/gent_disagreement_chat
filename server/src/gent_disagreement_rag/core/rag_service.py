@@ -69,6 +69,9 @@ You are an expert analyst of **A Gentleman's Disagreement Podcast**. Your task i
 - Use the relevant transcript segments below to answer the user's question
 - If the segments aren't relevant to the question, clearly state this
 - Maintain the conversational tone of the podcast in your analysis
+- **Format your response in clean, well-structured Markdown**
+- Use proper headings (## or ###), bullet points, and paragraph breaks for readability
+- Bold important points and use quotes for direct transcript references
 
 ## Available Transcript Segments
 {formatted_results}
@@ -77,7 +80,7 @@ You are an expert analyst of **A Gentleman's Disagreement Podcast**. Your task i
 **{question}**
 
 ## Your Response
-Please provide a comprehensive answer based on the transcript segments and your knowledge of the podcast:"""
+Please provide a comprehensive answer in Markdown format based on the transcript segments and your knowledge of the podcast:"""
 
 
 # - Provide specific quotes and references when possible
