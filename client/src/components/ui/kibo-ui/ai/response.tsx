@@ -32,6 +32,11 @@ export type AIResponseProps = HTMLAttributes<HTMLDivElement> & {
 };
 
 const components: Options["components"] = {
+  p: ({ node, children, className, ...props }) => (
+    <p className={cn("mb-4", className)} {...props}>
+      {children}
+    </p>
+  ),
   ol: ({ node, children, className, ...props }) => (
     <ol className={cn("ml-4 list-outside list-decimal", className)} {...props}>
       {children}
