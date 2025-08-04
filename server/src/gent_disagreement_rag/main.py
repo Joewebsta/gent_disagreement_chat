@@ -1,5 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
+
 from .core import RAGService
 
 app = FastAPI()
@@ -26,10 +28,23 @@ async def health_check():
 @app.post("/api/v1/chat")
 async def chat(request: Request):
     data = await request.json()
-    rag_service = RAGService()
     user_text = data["versions"][0]["content"]
+    rag_service = RAGService()
     response = rag_service.ask_question(user_text)
     return {"message": response}
+
+
+@app.post("/api/v1/chat/stream")
+async def stream_chat(request: Request):
+    data = await request.json()
+    user_text = data["versions"][0]["content"]
+    rag_service = RAGService()
+
+    return StreamingResponse(
+        content=rag_service.ask_question(user_text),
+        media_type="text/plain",
+        headers={"Cache-Control": "no-cache"},
+    )
 
 
 # poetry run uvicorn gent_disagreement_rag.main:app

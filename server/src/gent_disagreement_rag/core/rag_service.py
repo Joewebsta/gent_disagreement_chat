@@ -1,6 +1,8 @@
 from .vector_search import VectorSearch
 from openai import OpenAI
 import os
+from fastapi import FastAPI
+from fastapi.responses import StreamingResponse
 
 
 class RAGService:
@@ -33,7 +35,7 @@ class RAGService:
             prompt = self._create_prompt(formatted_results, question)
 
             # 4. Generate response
-            return self._generate_response(prompt, model)
+            return self._generate_streaming_response(prompt, model)
 
         except Exception as e:
             print(f"Error in RAG service: {e}")
@@ -41,11 +43,29 @@ class RAGService:
 
     def _generate_response(self, prompt, model):
         """Generate response using OpenAI LLM"""
-        response = self.client.chat.completions.create(
+        response = self.client.responses.create(
             model=model,
-            messages=[{"role": "user", "content": prompt}],
+            input=prompt,
         )
-        return response.choices[0].message.content
+
+    def _generate_streaming_response(self, prompt, model):
+        """Generate streaming response using OpenAI LLM"""
+        try:
+            stream = self.client.chat.completions.create(
+                model=model, messages=[{"role": "user", "content": prompt}], stream=True
+            )
+
+            for chunk in stream:
+                if chunk.choices[0].delta.content:
+                    content = chunk.choices[0].delta.content
+                    # Format as SSE
+                    yield f"data: {content}\n\n"
+
+            yield "data: [DONE]\n\n"
+        except Exception as e:
+            print(f"Error in streaming response: {e}")
+            yield f"data: Error: {str(e)}\n\n"
+            yield "data: [DONE]\n\n"
 
     def _format_search_results(self, search_results):
         """Format the search results into readable string"""

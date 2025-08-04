@@ -94,59 +94,59 @@ type Message = {
   name: string;
 };
 
-const initialMessages: Message[] = [
-  {
-    from: "user",
-    versions: [
-      {
-        id: "1",
-        content: "Can you explain how to use React hooks effectively?",
-      },
-    ],
-    avatar: "https://github.com/haydenbleasel.png",
-    name: "Hayden Bleasel",
-  },
-  {
-    from: "assistant",
-    // sources: [],
-    // tools: [],
-    versions: [
-      {
-        id: "1",
-        content: `# React Hooks Best Practices
-React hooks are a powerful feature that let you use state and other React features without writing classes. Here are some tips for using them effectively:
-## Rules of Hooks
-1. **Only call hooks at the top level** of your component or custom hooks
-2. **Don't call hooks inside loops, conditions, or nested functions**
-## Common Hooks
-- **useState**: For local component state
-- **useEffect**: For side effects like data fetching
-- **useContext**: For consuming context
-- **useReducer**: For complex state logic
-- **useCallback**: For memoizing functions
-- **useMemo**: For memoizing values
-## Example of useState and useEffect
-\`\`\`jsx
-function ProfilePage({ userId }) {
-  const [user, setUser] = useState(null);
-  
-  useEffect(() => {
-    // This runs after render and when userId changes
-    fetchUser(userId).then(userData => {
-      setUser(userData);
-    });
-  }, [userId]);
-  
-  return user ? <Profile user={user} /> : <Loading />;
-}
-\`\`\`
-Would you like me to explain any specific hook in more detail?`,
-      },
-    ],
-    avatar: "https://github.com/openai.png",
-    name: "OpenAI",
-  },
-];
+// const initialMessages: Message[] = [
+//   {
+//     from: "user",
+//     versions: [
+//       {
+//         id: "1",
+//         content: "Can you explain how to use React hooks effectively?",
+//       },
+//     ],
+//     avatar: "https://github.com/haydenbleasel.png",
+//     name: "Hayden Bleasel",
+//   },
+//   {
+//     from: "assistant",
+//     // sources: [],
+//     // tools: [],
+//     versions: [
+//       {
+//         id: "1",
+//         content: `# React Hooks Best Practices
+// React hooks are a powerful feature that let you use state and other React features without writing classes. Here are some tips for using them effectively:
+// ## Rules of Hooks
+// 1. **Only call hooks at the top level** of your component or custom hooks
+// 2. **Don't call hooks inside loops, conditions, or nested functions**
+// ## Common Hooks
+// - **useState**: For local component state
+// - **useEffect**: For side effects like data fetching
+// - **useContext**: For consuming context
+// - **useReducer**: For complex state logic
+// - **useCallback**: For memoizing functions
+// - **useMemo**: For memoizing values
+// ## Example of useState and useEffect
+// \`\`\`jsx
+// function ProfilePage({ userId }) {
+//   const [user, setUser] = useState(null);
+
+//   useEffect(() => {
+//     // This runs after render and when userId changes
+//     fetchUser(userId).then(userData => {
+//       setUser(userData);
+//     });
+//   }, [userId]);
+
+//   return user ? <Profile user={user} /> : <Loading />;
+// }
+// \`\`\`
+// Would you like me to explain any specific hook in more detail?`,
+//       },
+//     ],
+//     avatar: "https://github.com/openai.png",
+//     name: "OpenAI",
+//   },
+// ];
 const models = [
   { id: "gpt-4", name: "GPT-4", provider: "openai.com" },
   { id: "gpt-3.5-turbo", name: "GPT-3.5 Turbo", provider: "openai.com" },
@@ -163,7 +163,7 @@ const suggestions = [
   "How does machine learning work?",
 ];
 function App() {
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [model, setModel] = useState<string>(models[0].id);
   const [text, setText] = useState<string>("");
   const [useWebSearch, setUseWebSearch] = useState<boolean>(false);
@@ -199,23 +199,17 @@ function App() {
     });
 
     setStatus("submitted");
-    setTimeout(() => {
-      setStatus("streaming");
-    }, 200);
+    // setTimeout(() => {
+    //   setStatus("streaming");
+    // }, 200);
 
-    const response = await fetch("http://localhost:8000/api/v1/chat", {
-      method: "POST",
-      body: JSON.stringify(newMessage),
-    });
-
-    const data = await response.json();
-
+    // Create initial empty assistant message
     const assistantMessage: Message = {
       from: "assistant",
       versions: [
         {
           id: Date.now().toString(),
-          content: data.message,
+          content: "",
         },
       ],
       avatar: "https://github.com/openai.png",
@@ -223,9 +217,68 @@ function App() {
     };
     setMessages((prev) => [...prev, assistantMessage]);
 
-    setTimeout(() => {
-      setStatus("ready");
-    }, 2000);
+    // Start streaming
+    try {
+      const response = await fetch("http://localhost:8000/api/v1/chat/stream", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(newMessage),
+      });
+
+      if (!response.body) {
+        throw new Error("No response body");
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split("\n");
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const data = line.slice(6); // Remove 'data: ' prefix
+
+            if (data === "[DONE]") {
+              setStatus("ready");
+              return;
+            }
+
+            if (data.trim()) {
+              // Only append non-empty data
+              // Append chunk to assistant message
+              setMessages((prev) =>
+                prev.map((msg, index) =>
+                  index === prev.length - 1 // Last message (assistant)
+                    ? {
+                        ...msg,
+                        versions: [
+                          {
+                            ...msg.versions[0],
+                            content: msg.versions[0].content + data,
+                          },
+                        ],
+                      }
+                    : msg
+                )
+              );
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Streaming error:", error);
+      setStatus("error");
+      toast.error("Error", {
+        description: "Failed to stream response",
+      });
+    }
   };
 
   const handleFileAction = (action: string) => {
