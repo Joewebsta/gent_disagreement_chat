@@ -42,8 +42,11 @@ async def stream_chat(request: Request):
 
     return StreamingResponse(
         content=rag_service.ask_question(user_text),
-        media_type="text/plain",
-        headers={"Cache-Control": "no-cache"},
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        },
     )
 
 
