@@ -45,53 +45,6 @@ class DatabaseManager:
         """
         return psycopg2.connect(**self.connection_params)
 
-    def setup_database(self):
-        """
-        Set up the database with required extensions and tables.
-        """
-        conn = self.get_connection()
-        cur = conn.cursor()
-
-        try:
-            cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS transcript_segments (
-                    id SERIAL PRIMARY KEY,
-                    speaker TEXT NOT NULL,
-                    text TEXT NOT NULL,
-                    embedding vector(1536)
-                );
-            """
-            )
-            conn.commit()
-            print("Database setup complete!")
-        except Exception as e:
-            print("Error during setup:", e)
-        finally:
-            cur.close()
-            conn.close()
-
-    def insert_transcript_segment_with_embedding(self, speaker, text, embedding):
-        """
-        Insert a single transcript segment with its embedding into the database.
-        """
-        conn = self.get_connection()
-        cursor = conn.cursor()
-
-        try:
-            cursor.execute(
-                "INSERT INTO transcript_segments (speaker, text, embedding) VALUES (%s, %s, %s)",
-                (speaker, text, embedding),
-            )
-            conn.commit()
-            print(f"Stored embedding for: {text[:50]}...")
-        except Exception as e:
-            print("Error inserting transcript segment:", e)
-        finally:
-            cursor.close()
-            conn.close()
-
     def execute_query(self, query, params=None):
         """
         Execute a query with optional parameters.

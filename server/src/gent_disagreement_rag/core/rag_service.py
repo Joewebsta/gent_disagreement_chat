@@ -41,13 +41,6 @@ class RAGService:
             print(f"Error in RAG service: {e}")
             raise e
 
-    def _generate_response(self, prompt, model):
-        """Generate response using OpenAI LLM"""
-        response = self.client.responses.create(
-            model=model,
-            input=prompt,
-        )
-
     def _generate_streaming_response(self, prompt, model):
         """Generate streaming response using OpenAI LLM"""
         try:
@@ -58,8 +51,11 @@ class RAGService:
             for chunk in stream:
                 if chunk.choices[0].delta.content:
                     content = chunk.choices[0].delta.content
-                    # Format as SSE
-                    yield f"data: {content}\n\n"
+                    # Prefix each line with 'data: ' per SSE spec, preserving empty lines
+                    for line in content.split("\n"):
+                        yield f"data: {line}\n"
+                    # End of event
+                    yield "\n"
 
             yield "data: [DONE]\n\n"
         except Exception as e:
@@ -75,6 +71,9 @@ class RAGService:
             formatted_result += f"Speaker: {result['speaker']}\n"
             formatted_result += f"Text: {result['text']}\n"
             formatted_result += f"Similarity: {result['similarity']}\n  "
+            formatted_result += f"Episode: {result['episode_number']}\n"
+            formatted_result += f"Title: {result['title']}\n"
+            formatted_result += f"Date Published: {result['date_published']}\n"
             formatted_result += f"--------------------------------\n"
 
         return formatted_result
@@ -90,7 +89,7 @@ You are an expert analyst of **A Gentleman's Disagreement Podcast**. Your task i
 - If the segments aren't relevant to the question, clearly state this
 - Maintain the conversational tone of the podcast in your analysis
 - **Format your response in clean, well-structured Markdown**
-- Use proper headings (## or ###), bullet points, and paragraph breaks for readability
+- Use proper headings (## or ###), and paragraph breaks for readability
 - Bold important points and use quotes for direct transcript references
 
 ## Available Transcript Segments
@@ -101,6 +100,3 @@ You are an expert analyst of **A Gentleman's Disagreement Podcast**. Your task i
 
 ## Your Response
 Please provide a comprehensive answer in Markdown format based on the transcript segments and your knowledge of the podcast:"""
-
-
-# - Provide specific quotes and references when possible
