@@ -27,7 +27,7 @@ export const AIMessageContent = ({
 }: AIMessageContentProps) => (
   <div
     className={cn(
-      "flex flex-col gap-2 rounded-lg px-4 py-3 text-sm",
+      "flex flex-col gap-2 rounded-lg px-4 py-3 text-base",
       "bg-muted text-foreground",
       "group-[.is-user]:bg-primary group-[.is-user]:text-primary-foreground",
       className
