@@ -1,3 +1,4 @@
+import gentLogo from "@/assets/gent-disagreement-logo.png";
 import { AIBranch, AIBranchMessages } from "@/components/ui/kibo-ui/ai/branch";
 import {
   AIConversation,
@@ -19,6 +20,7 @@ import {
 import { AIResponse } from "@/components/ui/kibo-ui/ai/response";
 import { useChat } from "@ai-sdk/react";
 import { TextStreamChatTransport } from "ai";
+import { User } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -57,7 +59,7 @@ function App() {
 
   return (
     <div className="flex min-h-svh flex-col">
-      <div className="max-w-screen-lg mx-auto w-full px-4 flex flex-col flex-1">
+      <div className="max-w-screen-lg mx-auto w-full flex flex-col flex-1">
         <div className="flex-1 overflow-hidden">
           <AIConversation>
             <AIConversationContent>
@@ -81,14 +83,18 @@ function App() {
                           </AIResponse>
                         </AIMessageContent>
                       </div>
-                      <AIMessageAvatar
-                        name={message.role === "user" ? "User" : "Assistant"}
-                        src={
-                          message.role === "user"
-                            ? "https://github.com/haydenbleasel.png"
-                            : "https://github.com/openai.png"
-                        }
-                      />
+                      <div className="hidden sm:block">
+                        {message.role === "user" ? (
+                          <div className="size-8 rounded-full bg-black flex items-center justify-center">
+                            <User
+                              strokeWidth={3}
+                              className="size-4 text-white"
+                            />
+                          </div>
+                        ) : (
+                          <AIMessageAvatar name="Assistant" src={gentLogo} />
+                        )}
+                      </div>
                     </AIMessage>
                   </AIBranchMessages>
                 </AIBranch>
