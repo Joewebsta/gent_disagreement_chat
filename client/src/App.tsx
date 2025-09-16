@@ -30,7 +30,7 @@ function App() {
   // Use the Vercel AI SDK's useChat hook with text streaming - replaces all manual streaming logic
   const { messages, sendMessage, status } = useChat({
     transport: new TextStreamChatTransport({
-      api: "http://localhost:8000/api/chat",
+      api: import.meta.env.VITE_API_URL || "http://localhost:8000/api/chat",
     }),
     onFinish: () => {
       toast.success("Response received");
