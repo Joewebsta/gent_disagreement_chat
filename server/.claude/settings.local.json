@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "WebSearch",
-      "Read(//Users/jwebster/Home/Code/projects/2025-projects/!Starred/gent_disagreement_rag/client/**)"
-    ],
-    "deny": []
-  }
-}
