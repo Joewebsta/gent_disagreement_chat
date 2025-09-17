@@ -7,12 +7,12 @@ import { useCallback } from "react";
 import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
 import { cn } from "@/lib/utils";
 
-export type AIConversationProps = ComponentProps<typeof StickToBottom>;
+export type ConversationProps = ComponentProps<typeof StickToBottom>;
 
-export const AIConversation = ({
+export const Conversation = ({
   className,
   ...props
-}: AIConversationProps) => (
+}: ConversationProps) => (
   <StickToBottom
     className={cn("relative flex-1 overflow-y-auto", className)}
     initial="smooth"
@@ -22,18 +22,18 @@ export const AIConversation = ({
   />
 );
 
-export type AIConversationContentProps = ComponentProps<
+export type ConversationContentProps = ComponentProps<
   typeof StickToBottom.Content
 >;
 
-export const AIConversationContent = ({
+export const ConversationContent = ({
   className,
   ...props
-}: AIConversationContentProps) => (
+}: ConversationContentProps) => (
   <StickToBottom.Content className={cn("p-4", className)} {...props} />
 );
 
-export const AIConversationScrollButton = () => {
+export const ConversationScrollButton = () => {
   const { isAtBottom, scrollToBottom } = useStickToBottomContext();
 
   const handleScrollToBottom = useCallback(() => {

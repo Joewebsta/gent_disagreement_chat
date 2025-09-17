@@ -18,6 +18,11 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 
+export type PromptInputMessage = {
+  text?: string;
+  files?: File[];
+};
+
 type UseAutoResizeTextareaProps = {
   minHeight: number;
   maxHeight?: number;
@@ -41,10 +46,8 @@ const useAutoResizeTextarea = ({
         return;
       }
 
-      // Temporarily shrink to get the right scrollHeight
       textarea.style.height = `${minHeight}px`;
 
-      // Calculate new height
       const newHeight = Math.max(
         minHeight,
         Math.min(textarea.scrollHeight, maxHeight ?? Number.POSITIVE_INFINITY)
@@ -56,14 +59,12 @@ const useAutoResizeTextarea = ({
   );
 
   useEffect(() => {
-    // Set initial height
     const textarea = textareaRef.current;
     if (textarea) {
       textarea.style.height = `${minHeight}px`;
     }
   }, [minHeight]);
 
-  // Adjust height on window resize
   useEffect(() => {
     const handleResize = () => adjustHeight();
     window.addEventListener('resize', handleResize);
@@ -73,31 +74,83 @@ const useAutoResizeTextarea = ({
   return { textareaRef, adjustHeight };
 };
 
-export type AIInputProps = HTMLAttributes<HTMLFormElement>;
+export type PromptInputProps = HTMLAttributes<HTMLFormElement> & {
+  onSubmit: (message: PromptInputMessage) => void;
+  globalDrop?: boolean;
+  multiple?: boolean;
+};
 
-export const AIInput = ({ className, ...props }: AIInputProps) => (
-  <form
-    className={cn(
-      'w-full divide-y overflow-hidden rounded-xl border bg-background shadow-sm',
-      className
-    )}
-    {...props}
-  />
+export const PromptInput = ({
+  className,
+  onSubmit,
+  children,
+  ...props
+}: PromptInputProps) => {
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const text = formData.get('message') as string;
+    const files = formData.getAll('files') as File[];
+
+    onSubmit({ text, files });
+  };
+
+  return (
+    <form
+      className={cn(
+        'w-full divide-y overflow-hidden rounded-xl border bg-background shadow-sm',
+        className
+      )}
+      onSubmit={handleSubmit}
+      {...props}
+    >
+      {children}
+    </form>
+  );
+};
+
+export const PromptInputBody = ({ className, children, ...props }: HTMLAttributes<HTMLDivElement>) => (
+  <div className={cn('relative', className)} {...props}>
+    {children}
+  </div>
 );
 
-export type AIInputTextareaProps = ComponentProps<typeof Textarea> & {
+export const PromptInputAttachments = ({
+  className,
+  ...props
+}: HTMLAttributes<HTMLDivElement> & {
+  children?: (attachment: File) => React.ReactNode;
+}) => (
+  <div className={cn('p-2', className)} {...props}>
+    {/* Placeholder for attachments functionality */}
+  </div>
+);
+
+export const PromptInputAttachment = ({
+  data,
+  className
+}: {
+  data: File;
+  className?: string;
+}) => (
+  <div className={cn('text-xs text-muted-foreground', className)}>
+    {data.name}
+  </div>
+);
+
+export type PromptInputTextareaProps = ComponentProps<typeof Textarea> & {
   minHeight?: number;
   maxHeight?: number;
 };
 
-export const AIInputTextarea = ({
+export const PromptInputTextarea = ({
   onChange,
   className,
   placeholder = 'What would you like to know?',
   minHeight = 48,
   maxHeight = 164,
   ...props
-}: AIInputTextareaProps) => {
+}: PromptInputTextareaProps) => {
   const { textareaRef, adjustHeight } = useAutoResizeTextarea({
     minHeight,
     maxHeight,
@@ -134,21 +187,21 @@ export const AIInputTextarea = ({
   );
 };
 
-export type AIInputToolbarProps = HTMLAttributes<HTMLDivElement>;
+export type PromptInputToolbarProps = HTMLAttributes<HTMLDivElement>;
 
-export const AIInputToolbar = ({
+export const PromptInputToolbar = ({
   className,
   ...props
-}: AIInputToolbarProps) => (
+}: PromptInputToolbarProps) => (
   <div
     className={cn('flex items-center justify-between p-1', className)}
     {...props}
   />
 );
 
-export type AIInputToolsProps = HTMLAttributes<HTMLDivElement>;
+export type PromptInputToolsProps = HTMLAttributes<HTMLDivElement>;
 
-export const AIInputTools = ({ className, ...props }: AIInputToolsProps) => (
+export const PromptInputTools = ({ className, ...props }: PromptInputToolsProps) => (
   <div
     className={cn(
       'flex items-center gap-1',
@@ -159,14 +212,14 @@ export const AIInputTools = ({ className, ...props }: AIInputToolsProps) => (
   />
 );
 
-export type AIInputButtonProps = ComponentProps<typeof Button>;
+export type PromptInputButtonProps = ComponentProps<typeof Button>;
 
-export const AIInputButton = ({
+export const PromptInputButton = ({
   variant = 'ghost',
   className,
   size,
   ...props
-}: AIInputButtonProps) => {
+}: PromptInputButtonProps) => {
   const newSize =
     (size ?? Children.count(props.children) > 1) ? 'default' : 'icon';
 
@@ -186,18 +239,18 @@ export const AIInputButton = ({
   );
 };
 
-export type AIInputSubmitProps = ComponentProps<typeof Button> & {
+export type PromptInputSubmitProps = ComponentProps<typeof Button> & {
   status?: 'submitted' | 'streaming' | 'ready' | 'error';
 };
 
-export const AIInputSubmit = ({
+export const PromptInputSubmit = ({
   className,
   variant = 'default',
   size = 'icon',
   status,
   children,
   ...props
-}: AIInputSubmitProps) => {
+}: PromptInputSubmitProps) => {
   let Icon = <SendIcon />;
 
   if (status === 'submitted') {
@@ -221,20 +274,38 @@ export const AIInputSubmit = ({
   );
 };
 
-export type AIInputModelSelectProps = ComponentProps<typeof Select>;
+export const PromptInputActionMenu = ({ children }: { children: React.ReactNode }) => (
+  <div>{children}</div>
+);
 
-export const AIInputModelSelect = (props: AIInputModelSelectProps) => (
+export const PromptInputActionMenuTrigger = () => (
+  <Button variant="ghost" size="icon" type="button">
+    +
+  </Button>
+);
+
+export const PromptInputActionMenuContent = ({ children }: { children: React.ReactNode }) => (
+  <div>{children}</div>
+);
+
+export const PromptInputActionAddAttachments = () => (
+  <div>Add Attachments</div>
+);
+
+export type PromptInputModelSelectProps = ComponentProps<typeof Select>;
+
+export const PromptInputModelSelect = (props: PromptInputModelSelectProps) => (
   <Select {...props} />
 );
 
-export type AIInputModelSelectTriggerProps = ComponentProps<
+export type PromptInputModelSelectTriggerProps = ComponentProps<
   typeof SelectTrigger
 >;
 
-export const AIInputModelSelectTrigger = ({
+export const PromptInputModelSelectTrigger = ({
   className,
   ...props
-}: AIInputModelSelectTriggerProps) => (
+}: PromptInputModelSelectTriggerProps) => (
   <SelectTrigger
     className={cn(
       'border-none bg-transparent font-medium text-muted-foreground shadow-none transition-colors',
@@ -245,31 +316,31 @@ export const AIInputModelSelectTrigger = ({
   />
 );
 
-export type AIInputModelSelectContentProps = ComponentProps<
+export type PromptInputModelSelectContentProps = ComponentProps<
   typeof SelectContent
 >;
 
-export const AIInputModelSelectContent = ({
+export const PromptInputModelSelectContent = ({
   className,
   ...props
-}: AIInputModelSelectContentProps) => (
+}: PromptInputModelSelectContentProps) => (
   <SelectContent className={cn(className)} {...props} />
 );
 
-export type AIInputModelSelectItemProps = ComponentProps<typeof SelectItem>;
+export type PromptInputModelSelectItemProps = ComponentProps<typeof SelectItem>;
 
-export const AIInputModelSelectItem = ({
+export const PromptInputModelSelectItem = ({
   className,
   ...props
-}: AIInputModelSelectItemProps) => (
+}: PromptInputModelSelectItemProps) => (
   <SelectItem className={cn(className)} {...props} />
 );
 
-export type AIInputModelSelectValueProps = ComponentProps<typeof SelectValue>;
+export type PromptInputModelSelectValueProps = ComponentProps<typeof SelectValue>;
 
-export const AIInputModelSelectValue = ({
+export const PromptInputModelSelectValue = ({
   className,
   ...props
-}: AIInputModelSelectValueProps) => (
+}: PromptInputModelSelectValueProps) => (
   <SelectValue className={cn(className)} {...props} />
 );
