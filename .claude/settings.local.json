@@ -6,7 +6,9 @@
       "mcp__context7__get-library-docs",
       "Bash(curl:*)",
       "Bash(npm install:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(cd:*)",
+      "Bash(npm run build:*)"
     ],
     "deny": []
   }
