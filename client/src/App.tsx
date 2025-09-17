@@ -56,7 +56,7 @@ function hasMessageContent(message: UIMessage): boolean {
 function App() {
   const [input, setInput] = useState<string>("");
 
-  const { messages, sendMessage, status } = useChat({
+  const { messages, sendMessage, stop, status } = useChat({
     transport: new TextStreamChatTransport({
       api: import.meta.env.VITE_API_URL || "http://localhost:8000/api/chat",
     }),
@@ -212,7 +212,7 @@ function App() {
           </PromptInputBody>
           <PromptInputToolbar>
             <PromptInputTools></PromptInputTools>
-            <PromptInputSubmit disabled={!input && !status} status={status} />
+            <PromptInputSubmit disabled={!input && !status} status={status} onStop={stop} />
           </PromptInputToolbar>
         </PromptInput>
       </div>
