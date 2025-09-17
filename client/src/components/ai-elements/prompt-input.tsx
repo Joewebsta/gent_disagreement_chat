@@ -434,7 +434,7 @@ export const PromptInput = ({
       />
       <form
         className={cn(
-          "w-full divide-y overflow-hidden rounded-xl border bg-background shadow-sm",
+          "w-full overflow-hidden rounded-xl border bg-background shadow-sm",
           className
         )}
         onSubmit={handleSubmit}
@@ -539,7 +539,7 @@ export const PromptInputButton = ({
   ...props
 }: PromptInputButtonProps) => {
   const newSize =
-    (size ?? Children.count(props.children) > 1) ? "default" : "icon";
+    size ?? Children.count(props.children) > 1 ? "default" : "icon";
 
   return (
     <Button
