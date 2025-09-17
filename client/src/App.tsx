@@ -3,8 +3,8 @@ import {
   Conversation,
   ConversationContent,
   ConversationScrollButton,
-} from '@/components/ai-elements/conversation';
-import { Message, MessageContent } from '@/components/ai-elements/message';
+} from "@/components/ai-elements/conversation";
+import { Message, MessageContent } from "@/components/ai-elements/message";
 import {
   PromptInput,
   PromptInputBody,
@@ -13,24 +13,21 @@ import {
   PromptInputTextarea,
   PromptInputToolbar,
   PromptInputTools,
-} from '@/components/ai-elements/prompt-input';
-import {
-  Action,
-  Actions,
-} from '@/components/ai-elements/actions';
-import { Response } from '@/components/ai-elements/response';
+} from "@/components/ai-elements/prompt-input";
+import { Action, Actions } from "@/components/ai-elements/actions";
+import { Response } from "@/components/ai-elements/response";
 import {
   Source,
   Sources,
   SourcesContent,
   SourcesTrigger,
-} from '@/components/ai-elements/sources';
+} from "@/components/ai-elements/sources";
 import {
   Reasoning,
   ReasoningContent,
   ReasoningTrigger,
-} from '@/components/ai-elements/reasoning';
-import { Loader } from '@/components/ai-elements/loader';
+} from "@/components/ai-elements/reasoning";
+import { Loader } from "@/components/ai-elements/loader";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useChat } from "@ai-sdk/react";
 import { TextStreamChatTransport, type UIMessage, type TextUIPart } from "ai";
@@ -39,24 +36,22 @@ import { Fragment, useState } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-
 function isTextPart(part: unknown): part is TextUIPart {
   if (!part || typeof part !== "object" || part === null) {
     return false;
   }
 
   const candidate = part as Record<string, unknown>;
-  return (
-    candidate.type === "text" &&
-    typeof candidate.text === "string"
-  );
+  return candidate.type === "text" && typeof candidate.text === "string";
 }
 
 function getMessageText(message: UIMessage): string {
-  return message.parts
-    ?.filter(isTextPart)
-    .map(part => part.text)
-    .join("") || "";
+  return (
+    message.parts
+      ?.filter(isTextPart)
+      .map((part) => part.text)
+      .join("") || ""
+  );
 }
 
 function App() {
@@ -86,15 +81,18 @@ function App() {
     }
 
     sendMessage({
-      text: message.text || 'Sent with attachments'
+      text: message.text || "Sent with attachments",
     });
-    setInput('');
+    setInput("");
     toast.success("Message sent");
   };
 
   const regenerate = () => {
     if (messages.length > 0) {
-      const lastUserMessage = messages.slice().reverse().find(m => m.role === 'user');
+      const lastUserMessage = messages
+        .slice()
+        .reverse()
+        .find((m) => m.role === "user");
       if (lastUserMessage) {
         sendMessage({ text: getMessageText(lastUserMessage) });
       }
@@ -108,36 +106,38 @@ function App() {
           <ConversationContent>
             {messages.map((message) => (
               <div key={message.id}>
-                {message.role === 'assistant' && message.parts.filter((part) => part.type === 'source-url').length > 0 && (
-                  <Sources>
-                    <SourcesTrigger
-                      count={
-                        message.parts.filter(
-                          (part) => part.type === 'source-url',
-                        ).length
-                      }
-                    />
-                    {message.parts.filter((part) => part.type === 'source-url').map((part, i) => (
-                      <SourcesContent key={`${message.id}-${i}`}>
-                        <Source
-                          key={`${message.id}-${i}`}
-                          href={part.url}
-                          title={part.url}
-                        />
-                      </SourcesContent>
-                    ))}
-                  </Sources>
-                )}
+                {message.role === "assistant" &&
+                  message.parts.filter((part) => part.type === "source-url")
+                    .length > 0 && (
+                    <Sources>
+                      <SourcesTrigger
+                        count={
+                          message.parts.filter(
+                            (part) => part.type === "source-url"
+                          ).length
+                        }
+                      />
+                      {message.parts
+                        .filter((part) => part.type === "source-url")
+                        .map((part, i) => (
+                          <SourcesContent key={`${message.id}-${i}`}>
+                            <Source
+                              key={`${message.id}-${i}`}
+                              href={part.url}
+                              title={part.url}
+                            />
+                          </SourcesContent>
+                        ))}
+                    </Sources>
+                  )}
                 {message.parts.map((part, i) => {
                   switch (part.type) {
-                    case 'text':
+                    case "text":
                       return (
                         <Fragment key={`${message.id}-${i}`}>
                           <Message from={message.role as "user" | "assistant"}>
                             <MessageContent>
-                              <Response>
-                                {part.text}
-                              </Response>
+                              <Response>{part.text}</Response>
                             </MessageContent>
                             <div className="hidden sm:block">
                               {message.role === "user" ? (
@@ -149,38 +149,48 @@ function App() {
                                 </div>
                               ) : (
                                 <Avatar className={cn("size-8")}>
-                                  <AvatarImage alt="" className="mt-0 mb-0" src={gentLogo} />
+                                  <AvatarImage
+                                    alt=""
+                                    className="mt-0 mb-0"
+                                    src={gentLogo}
+                                  />
                                   <AvatarFallback>AI</AvatarFallback>
                                 </Avatar>
                               )}
                             </div>
                           </Message>
-                          {message.role === 'assistant' && i === message.parts.length - 1 && message.id === messages.at(-1)?.id && (
-                            <Actions className="mt-2">
-                              <Action
-                                onClick={() => regenerate()}
-                                label="Retry"
-                              >
-                                <RefreshCcwIcon className="size-3" />
-                              </Action>
-                              <Action
-                                onClick={() =>
-                                  navigator.clipboard.writeText(part.text)
-                                }
-                                label="Copy"
-                              >
-                                <CopyIcon className="size-3" />
-                              </Action>
-                            </Actions>
-                          )}
+                          {message.role === "assistant" &&
+                            i === message.parts.length - 1 &&
+                            message.id === messages.at(-1)?.id && (
+                              <Actions className="mt-2">
+                                <Action
+                                  onClick={() => regenerate()}
+                                  label="Retry"
+                                >
+                                  <RefreshCcwIcon className="size-3" />
+                                </Action>
+                                <Action
+                                  onClick={() =>
+                                    navigator.clipboard.writeText(part.text)
+                                  }
+                                  label="Copy"
+                                >
+                                  <CopyIcon className="size-3" />
+                                </Action>
+                              </Actions>
+                            )}
                         </Fragment>
                       );
-                    case 'reasoning':
+                    case "reasoning":
                       return (
                         <Reasoning
                           key={`${message.id}-${i}`}
                           className="w-full"
-                          isStreaming={status === 'streaming' && i === message.parts.length - 1 && message.id === messages.at(-1)?.id}
+                          isStreaming={
+                            status === "streaming" &&
+                            i === message.parts.length - 1 &&
+                            message.id === messages.at(-1)?.id
+                          }
                         >
                           <ReasoningTrigger />
                           <ReasoningContent>{part.text}</ReasoningContent>
@@ -192,7 +202,7 @@ function App() {
                 })}
               </div>
             ))}
-            {status === 'submitted' && <Loader />}
+            {status === "submitted" && <Loader />}
           </ConversationContent>
           <ConversationScrollButton />
         </Conversation>
