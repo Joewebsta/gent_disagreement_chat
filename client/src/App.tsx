@@ -84,6 +84,10 @@ function App() {
   };
 
   const handleSuggestionClick = (suggestion: string) => {
+    if (status === "streaming") {
+      return;
+    }
+
     sendMessage({ text: suggestion });
     setInput("");
   };
