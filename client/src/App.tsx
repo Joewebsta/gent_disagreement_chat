@@ -19,6 +19,7 @@ import {
   PromptInputTools,
 } from "@/components/ai-elements/prompt-input";
 import { Response } from "@/components/ai-elements/response";
+import { Suggestion, Suggestions } from "@/components/ai-elements/suggestion";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { useChat } from "@ai-sdk/react";
@@ -55,6 +56,11 @@ function hasMessageContent(message: UIMessage): boolean {
 function App() {
   const [input, setInput] = useState<string>("");
 
+  const suggestions = [
+    "What is a Gentleman's Disagreement?",
+    "What are the 3 most recent episodes?",
+  ];
+
   const { messages, sendMessage, stop, status } = useChat({
     transport: new TextStreamChatTransport({
       api: import.meta.env.VITE_API_URL || "http://localhost:8000/api/chat",
@@ -74,6 +80,11 @@ function App() {
     sendMessage({
       text: message.text || "Sent with attachments",
     });
+    setInput("");
+  };
+
+  const handleSuggestionClick = (suggestion: string) => {
+    sendMessage({ text: suggestion });
     setInput("");
   };
 
@@ -194,23 +205,34 @@ function App() {
           </ConversationContent>
           <ConversationScrollButton />
         </Conversation>
+        <div className="mt-4">
+          <Suggestions>
+            {suggestions.map((suggestion) => (
+              <Suggestion
+                key={suggestion}
+                onClick={handleSuggestionClick}
+                suggestion={suggestion}
+              />
+            ))}
+          </Suggestions>
 
-        <PromptInput onSubmit={handleSubmit} className="mt-4">
-          <PromptInputBody>
-            <PromptInputTextarea
-              onChange={(e) => setInput(e.target.value)}
-              value={input}
-            />
-          </PromptInputBody>
-          <PromptInputToolbar>
-            <PromptInputTools></PromptInputTools>
-            <PromptInputSubmit
-              disabled={!input && !status}
-              status={status}
-              onStop={stop}
-            />
-          </PromptInputToolbar>
-        </PromptInput>
+          <PromptInput onSubmit={handleSubmit} className="mt-4">
+            <PromptInputBody>
+              <PromptInputTextarea
+                onChange={(e) => setInput(e.target.value)}
+                value={input}
+              />
+            </PromptInputBody>
+            <PromptInputToolbar>
+              <PromptInputTools></PromptInputTools>
+              <PromptInputSubmit
+                disabled={!input && !status}
+                status={status}
+                onStop={stop}
+              />
+            </PromptInputToolbar>
+          </PromptInput>
+        </div>
       </div>
     </div>
   );
