@@ -21,10 +21,19 @@ import {
 import { Response } from "@/components/ai-elements/response";
 import { Suggestion, Suggestions } from "@/components/ai-elements/suggestion";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { useChat } from "@ai-sdk/react";
 import { TextStreamChatTransport, type TextUIPart, type UIMessage } from "ai";
-import { CopyIcon, RefreshCcwIcon, User } from "lucide-react";
+import { CopyIcon, InfoIcon, RefreshCcwIcon, User } from "lucide-react";
 import { Fragment, useState } from "react";
 
 function isTextPart(part: unknown): part is TextUIPart {
@@ -106,6 +115,50 @@ function App() {
 
   return (
     <div className="max-w-4xl mx-auto p-6 relative size-full h-screen">
+      <Dialog>
+        <DialogTrigger className="cursor-pointer" asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute top-4 right-4 z-10"
+            aria-label="Information"
+          >
+            <InfoIcon className="h-4 w-4 text-muted-foreground" />
+          </Button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>About A Gentleman's Disagreement</DialogTitle>
+            <DialogDescription>
+              Welcome to the A Gentleman's Disagreement chatbot! This AI
+              assistant can help you explore topics and perspectives discussed
+              on the podcast.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Ask questions about specific episodes, guests, topics, or general
+              podcast information. The AI has been trained on podcast content to
+              provide relevant and helpful responses.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Try asking about recent episodes, specific topics of interest, or
+              request summaries of discussions.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              This chatbot was created by friend of the pod,{" "}
+              <a
+                href="https://www.linkedin.com/in/joeswebster/"
+                className="text-blue-500"
+                target="_blank"
+              >
+                Joe Webster
+              </a>
+              .
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
       <div className="flex flex-col h-full">
         {/* <header className="mb-2 text-center">
           <h1 className="text-sm font-semibold text-gray-900">
@@ -117,7 +170,7 @@ function App() {
             {messages.length === 0 ? (
               <ConversationEmptyState
                 title="Welcome to A Gentleman's Disagreement"
-                description="Start a conversation to begin exploring ideas and perspectives"
+                description="Start a conversation to explore ideas"
                 icon={
                   <img
                     src={gdLogo}
