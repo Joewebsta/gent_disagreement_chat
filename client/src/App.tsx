@@ -25,7 +25,6 @@ import { useChat } from "@ai-sdk/react";
 import { TextStreamChatTransport, type TextUIPart, type UIMessage } from "ai";
 import { CopyIcon, RefreshCcwIcon, User } from "lucide-react";
 import { Fragment, useState } from "react";
-import { toast } from "sonner";
 
 function isTextPart(part: unknown): part is TextUIPart {
   if (!part || typeof part !== "object" || part === null) {
@@ -60,14 +59,8 @@ function App() {
     transport: new TextStreamChatTransport({
       api: import.meta.env.VITE_API_URL || "http://localhost:8000/api/chat",
     }),
-    onFinish: () => {
-      toast.success("Response received");
-    },
-    onError: (error) => {
-      toast.error("Error", {
-        description: error.message,
-      });
-    },
+    onFinish: () => {},
+    onError: () => {},
   });
 
   const handleSubmit = (message: PromptInputMessage) => {
@@ -82,7 +75,6 @@ function App() {
       text: message.text || "Sent with attachments",
     });
     setInput("");
-    toast.success("Message sent");
   };
 
   const regenerate = () => {
@@ -212,7 +204,11 @@ function App() {
           </PromptInputBody>
           <PromptInputToolbar>
             <PromptInputTools></PromptInputTools>
-            <PromptInputSubmit disabled={!input && !status} status={status} onStop={stop} />
+            <PromptInputSubmit
+              disabled={!input && !status}
+              status={status}
+              onStop={stop}
+            />
           </PromptInputToolbar>
         </PromptInput>
       </div>
