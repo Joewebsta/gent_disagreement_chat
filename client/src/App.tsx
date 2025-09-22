@@ -174,7 +174,7 @@ function App() {
               {messages.length === 0 ? (
                 <ConversationEmptyState
                   title="Welcome to A Gentleman's Disagreement"
-                  description="Start a conversation to explore ideas"
+                  description="Start a conversation to explore the podcast"
                   icon={
                     <img
                       src={gdLogo}
