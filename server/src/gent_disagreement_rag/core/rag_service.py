@@ -63,7 +63,7 @@ class RAGService:
             print(f"Error in RAG service: {e}")
             raise e
 
-    def ask_question_text_stream(self, question, model="gpt-5-nano-2025-08-07"):
+    def ask_question_text_stream(self, question, model="gpt-4o-mini-2024-07-18"):
         """Implement RAG with simple text streaming for AI SDK compatibility"""
         try:
             # 1. Find relevant transcript segments
