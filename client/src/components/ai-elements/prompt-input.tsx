@@ -634,7 +634,7 @@ export const PromptInputSubmit = ({
 
   return (
     <Button
-      className={cn("gap-1.5 rounded-lg", className)}
+      className={cn("gap-1.5 rounded-lg cursor-pointer", className)}
       size={size}
       type={status === "streaming" ? "button" : "submit"}
       variant={variant}
