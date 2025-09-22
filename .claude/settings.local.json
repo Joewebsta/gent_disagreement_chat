@@ -9,7 +9,9 @@
       "WebSearch",
       "Bash(cd:*)",
       "Bash(npm run build:*)",
-      "Read(//var/folders/32/tqds07zj56qg83_1st7fgk3c0000gn/T/TemporaryItems/NSIRD_screencaptureui_TniLNZ/**)"
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:streamdown.ai)",
+      "Read(//Users/jwebster/Desktop/**)"
     ],
     "deny": []
   }
