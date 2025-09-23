@@ -61,6 +61,10 @@ class AutomatedMetrics:
         # Speaker diversity
         metrics.update(self._calculate_speaker_metrics(retrieved_segments))
 
+        # Add podcast-specific content analysis
+        podcast_metrics = self._calculate_podcast_content_metrics(retrieved_segments)
+        metrics.update(podcast_metrics)
+
         return metrics
 
     def _calculate_diversity_metrics(self, segments: List[Dict[str, Any]]) -> Dict[str, float]:
@@ -199,7 +203,7 @@ class AutomatedMetrics:
         }
 
     def _calculate_speaker_metrics(self, segments: List[Dict[str, Any]]) -> Dict[str, float]:
-        """Calculate speaker diversity metrics"""
+        """Calculate speaker diversity metrics with podcast-specific analysis"""
         speakers = [seg.get('speaker', 'unknown') for seg in segments]
         unique_speakers = len(set(speakers))
         speaker_diversity = unique_speakers / len(segments) if segments else 0.0
@@ -213,10 +217,79 @@ class AutomatedMetrics:
         else:
             speaker_balance = 1.0
 
+        # Podcast-specific metrics: Host vs Guest analysis
+        hosts = set(['Ricky Ghoshroy', 'Brendan Kelly', 'Ricky', 'Brendan'])
+        host_segments = [s for s in speakers if s in hosts]
+        guest_segments = [s for s in speakers if s not in hosts and s != 'unknown']
+
+        host_ratio = len(host_segments) / len(speakers) if speakers else 0.0
+        guest_ratio = len(guest_segments) / len(speakers) if speakers else 0.0
+
+        # Guest authority scoring (segments per unique guest)
+        unique_guests = len(set(guest_segments))
+        guest_segment_ratio = len(guest_segments) / unique_guests if unique_guests > 0 else 0.0
+
+        # Host interaction analysis
+        unique_hosts = len(set(host_segments))
+        host_interaction_score = unique_hosts / 2.0 if unique_hosts <= 2 else 1.0  # Ideal is both hosts
+
         return {
             'speaker_diversity': speaker_diversity,
             'unique_speakers': unique_speakers,
-            'speaker_balance': speaker_balance
+            'speaker_balance': speaker_balance,
+            'host_ratio': host_ratio,
+            'guest_ratio': guest_ratio,
+            'unique_guests': unique_guests,
+            'guest_authority_score': min(1.0, guest_segment_ratio / 5.0),  # Normalize to 0-1
+            'host_interaction_score': host_interaction_score,
+            'expert_presence': 1.0 if unique_guests > 0 else 0.0
+        }
+
+    def _calculate_podcast_content_metrics(self, segments: List[Dict[str, Any]]) -> Dict[str, float]:
+        """Calculate podcast-specific content complexity and quality metrics"""
+        if not segments:
+            return {}
+
+        texts = [seg.get('text', '') for seg in segments]
+        combined_text = ' '.join(texts).lower()
+
+        # Legal/Constitutional content indicators
+        legal_terms = ['constitutional', 'supreme court', 'justice', 'precedent', 'ruling',
+                      'amendment', 'congress', 'executive', 'judicial', 'federalism',
+                      'due process', 'jurisdiction', 'statute', 'regulation', 'policy']
+
+        legal_content_score = sum(1 for term in legal_terms if term in combined_text) / len(legal_terms)
+
+        # Analytical depth indicators
+        analytical_terms = ['analyze', 'framework', 'perspective', 'implications', 'consequences',
+                           'underlying', 'systematic', 'fundamental', 'approach', 'methodology']
+
+        analytical_depth = sum(1 for term in analytical_terms if term in combined_text) / len(analytical_terms)
+
+        # Current events relevance
+        current_terms = ['current', 'recent', 'today', 'now', 'administration', 'president',
+                        'election', 'policy', 'politics', 'government']
+
+        current_relevance = sum(1 for term in current_terms if term in combined_text) / len(current_terms)
+
+        # Long-form conversation indicators
+        avg_segment_length = np.mean([len(text.split()) for text in texts]) if texts else 0
+        long_form_score = min(1.0, avg_segment_length / 50.0)  # Normalize based on expected length
+
+        # Expert citation/reference indicators
+        citation_terms = ['study', 'research', 'data', 'statistics', 'report', 'analysis',
+                         'professor', 'expert', 'scholar', 'according to', 'evidence']
+
+        citation_score = sum(1 for term in citation_terms if term in combined_text) / len(citation_terms)
+
+        return {
+            'legal_content_score': legal_content_score,
+            'analytical_depth': analytical_depth,
+            'current_relevance': current_relevance,
+            'long_form_score': long_form_score,
+            'citation_score': citation_score,
+            'podcast_complexity': (legal_content_score + analytical_depth + citation_score) / 3,
+            'avg_segment_length': avg_segment_length
         }
 
     def _calculate_text_overlap_diversity(self, texts: List[str]) -> float:

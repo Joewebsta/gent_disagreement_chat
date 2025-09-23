@@ -30,6 +30,9 @@ class GroundTruthGenerator:
         speakers = self._get_unique_speakers()
         topics = self._extract_common_topics()
 
+        # Extract episode-specific themes and context
+        episode_contexts = self._extract_episode_contexts(episodes)
+
         # Question distribution
         question_types = {
             'factual': 0.3,
@@ -54,9 +57,12 @@ class GroundTruthGenerator:
             # Select question type based on distribution
             question_type = self._select_question_type(question_types)
 
+            # Select episode context for this question
+            episode_context = random.choice(episode_contexts) if episode_contexts else None
+
             # Generate question based on type
             question_data = self._generate_question_by_type(
-                question_type, episodes, speakers, topics, i
+                question_type, episodes, speakers, topics, i, episode_context
             )
 
             # Find relevant segments for this question
@@ -251,14 +257,85 @@ class GroundTruthGenerator:
         return [row['speaker'] for row in results]
 
     def _extract_common_topics(self) -> List[str]:
-        """Extract common topics from transcript text (simplified approach)"""
-        # This is a simplified version - in practice, you'd use NLP techniques
+        """Extract common topics from transcript text (podcast-specific)"""
+        # Topics specific to "A Gentleman's Disagreement" podcast content
         common_topics = [
-            "politics", "technology", "culture", "society", "economics",
-            "philosophy", "current events", "personal experiences", "books",
-            "media", "relationships", "career", "education", "health"
+            "constitutional law", "supreme court", "federal government", "authoritarianism",
+            "democracy", "voting rights", "immigration", "foreign policy", "economics",
+            "tariffs", "trade policy", "political theory", "legal analysis", "civil rights",
+            "executive power", "congressional authority", "judicial review", "federalism",
+            "administrative law", "public policy", "international relations", "economic policy",
+            "campaign finance", "gerrymandering", "education policy", "healthcare policy",
+            "climate change", "technology policy", "media", "journalism", "political philosophy"
         ]
         return common_topics
+
+    def _extract_episode_contexts(self, episodes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Extract episode-specific themes and contexts"""
+        contexts = []
+
+        for episode in episodes:
+            # Get transcript segments for this episode
+            episode_id = episode.get('id') or episode.get('episode_number')
+            if not episode_id:
+                continue
+
+            query = """
+                SELECT speaker, text
+                FROM transcript_segments
+                WHERE episode_id = ? OR episode_number = ?
+                LIMIT 50
+            """
+
+            try:
+                segments = self.db_manager.execute_query(query, (episode_id, episode_id))
+
+                if segments:
+                    # Extract themes and speakers for this episode
+                    episode_text = ' '.join([seg['text'] for seg in segments]).lower()
+                    episode_speakers = list(set([seg['speaker'] for seg in segments if seg['speaker']]))
+
+                    # Identify key themes in this episode
+                    themes = self._identify_episode_themes(episode_text)
+
+                    contexts.append({
+                        'episode_id': episode_id,
+                        'episode_number': episode.get('episode_number'),
+                        'title': episode.get('title', ''),
+                        'themes': themes,
+                        'speakers': episode_speakers,
+                        'guest_speakers': [s for s in episode_speakers if s not in ['Ricky Ghoshroy', 'Brendan Kelly', 'Ricky', 'Brendan']],
+                        'sample_text': episode_text[:500]  # First 500 chars for context
+                    })
+            except Exception as e:
+                print(f"Error extracting context for episode {episode_id}: {e}")
+                continue
+
+        return contexts
+
+    def _identify_episode_themes(self, episode_text: str) -> List[str]:
+        """Identify key themes in an episode based on content analysis"""
+        themes = []
+
+        # Theme detection based on key terms
+        theme_indicators = {
+            'supreme_court': ['supreme court', 'justice', 'scotus', 'constitutional', 'ruling'],
+            'executive_power': ['president', 'executive', 'trump', 'biden', 'administration'],
+            'economics': ['economy', 'tariffs', 'trade', 'economic', 'inflation', 'gdp'],
+            'foreign_policy': ['foreign', 'international', 'china', 'russia', 'ukraine', 'nato'],
+            'immigration': ['immigration', 'border', 'visa', 'immigrant', 'refugee'],
+            'voting_rights': ['voting', 'election', 'ballot', 'gerrymandering', 'democracy'],
+            'civil_rights': ['civil rights', 'discrimination', 'equality', 'amendment'],
+            'legal_analysis': ['law', 'legal', 'court', 'case', 'precedent', 'statute'],
+            'political_theory': ['democracy', 'authoritarianism', 'federalism', 'political'],
+            'current_events': ['current', 'recent', 'news', 'today', 'latest']
+        }
+
+        for theme, indicators in theme_indicators.items():
+            if any(indicator in episode_text for indicator in indicators):
+                themes.append(theme)
+
+        return themes
 
     def _select_question_type(self, distributions: Dict[str, float]) -> str:
         """Select question type based on probability distribution"""
@@ -273,82 +350,141 @@ class GroundTruthGenerator:
         return list(distributions.keys())[-1]  # fallback
 
     def _generate_question_by_type(self, question_type: str, episodes: List[Dict],
-                                  speakers: List[str], topics: List[str], index: int) -> Dict[str, Any]:
-        """Generate question based on type"""
+                                  speakers: List[str], topics: List[str], index: int,
+                                  episode_context: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Generate question based on type with episode context"""
         if question_type == 'factual':
-            return self._generate_factual_question(episodes, speakers, topics, index)
+            return self._generate_factual_question(episodes, speakers, topics, index, episode_context)
         elif question_type == 'analytical':
-            return self._generate_analytical_question(topics, index)
+            return self._generate_analytical_question(topics, index, episode_context)
         elif question_type == 'comparative':
-            return self._generate_comparative_question(speakers, topics, index)
+            return self._generate_comparative_question(speakers, topics, index, episode_context)
         elif question_type == 'opinion':
-            return self._generate_opinion_question(speakers, topics, index)
+            return self._generate_opinion_question(speakers, topics, index, episode_context)
         elif question_type == 'chronological':
-            return self._generate_chronological_question(episodes, index)
+            return self._generate_chronological_question(episodes, index, episode_context)
         else:
-            return self._generate_factual_question(episodes, speakers, topics, index)
+            return self._generate_factual_question(episodes, speakers, topics, index, episode_context)
 
     def _generate_factual_question(self, episodes: List[Dict], speakers: List[str],
-                                  topics: List[str], index: int) -> Dict[str, Any]:
-        """Generate factual questions"""
+                                  topics: List[str], index: int,
+                                  episode_context: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Generate factual questions specific to podcast content"""
+        # Filter for likely guest speakers (non-host names)
+        guest_speakers = [s for s in speakers if s not in ['Ricky Ghoshroy', 'Brendan Kelly', 'Ricky', 'Brendan']]
+
         templates = [
             f"What did {random.choice(speakers)} say about {random.choice(topics)}?",
-            f"What specific examples did the hosts give when discussing {random.choice(topics)}?",
-            f"What facts or statistics were mentioned in episode {random.choice(episodes)['episode_number']}?",
-            f"What book/movie/article recommendations did {random.choice(speakers)} make?",
-            f"What personal anecdotes did the hosts share about {random.choice(topics)}?"
+            f"What specific legal precedent or case did the hosts discuss regarding {random.choice(topics)}?",
+            f"What Supreme Court decision was analyzed in the context of {random.choice(topics)}?",
+            f"What economic data or statistics were cited when discussing {random.choice(topics)}?",
+            f"What constitutional principle did the hosts invoke when discussing {random.choice(topics)}?",
+            f"What historical example or precedent was mentioned regarding {random.choice(topics)}?",
         ]
+
+        # Add guest-specific questions if guests are available
+        if guest_speakers:
+            guest = random.choice(guest_speakers)
+            templates.extend([
+                f"What was {guest}'s main argument about {random.choice(topics)}?",
+                f"What expertise did {guest} bring to the discussion of {random.choice(topics)}?",
+                f"What specific recommendation did {guest} make regarding {random.choice(topics)}?"
+            ])
+
+        # Add episode-specific questions if context is available
+        if episode_context:
+            episode_themes = episode_context.get('themes', [])
+            episode_guests = episode_context.get('guest_speakers', [])
+            episode_number = episode_context.get('episode_number', '')
+
+            if episode_themes:
+                theme = random.choice(episode_themes).replace('_', ' ')
+                templates.extend([
+                    f"What specific points were made about {theme} in episode {episode_number}?",
+                    f"How did the hosts analyze {theme} in this episode?"
+                ])
+
+            if episode_guests:
+                guest = random.choice(episode_guests)
+                templates.extend([
+                    f"What expertise did {guest} bring to episode {episode_number}?",
+                    f"What was {guest}'s main contribution to the discussion in this episode?"
+                ])
 
         return {
             'question': random.choice(templates),
             'difficulty': 'easy',
             'answer_type': 'specific_fact',
-            'metadata': {'requires_exact_match': True}
+            'metadata': {
+                'requires_exact_match': True,
+                'content_type': 'podcast',
+                'episode_context': episode_context.get('episode_number') if episode_context else None
+            }
         }
 
-    def _generate_analytical_question(self, topics: List[str], index: int) -> Dict[str, Any]:
-        """Generate analytical questions"""
+    def _generate_analytical_question(self, topics: List[str], index: int,
+                                      episode_context: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Generate analytical questions for podcast content"""
         topic1, topic2 = random.sample(topics, 2)
         templates = [
-            f"How do the hosts analyze the relationship between {topic1} and {topic2}?",
-            f"What underlying patterns do the hosts identify in {topic1} discussions?",
-            f"How do the hosts break down complex {topic1} issues?",
-            f"What framework do the hosts use to understand {topic1}?",
-            f"What are the root causes the hosts identify for {topic1} problems?"
+            f"How do the hosts analyze the constitutional implications of {topic1}?",
+            f"What legal framework do the hosts use to evaluate {topic1} policies?",
+            f"How do the hosts connect {topic1} to broader democratic principles?",
+            f"What historical precedents do the hosts use to analyze {topic1}?",
+            f"How do the hosts examine the relationship between {topic1} and {topic2}?",
+            f"What are the long-term consequences the hosts identify regarding {topic1}?",
+            f"How do the hosts evaluate the effectiveness of current {topic1} approaches?",
+            f"What systemic issues do the hosts identify in {topic1} policy?",
+            f"How do the hosts analyze the balance of power in {topic1} decisions?",
+            f"What contradictions or tensions do the hosts identify in {topic1} discourse?"
         ]
 
         return {
             'question': random.choice(templates),
             'difficulty': 'medium',
             'answer_type': 'analytical_framework',
-            'metadata': {'requires_synthesis': True}
+            'metadata': {'requires_synthesis': True, 'content_type': 'podcast'}
         }
 
-    def _generate_comparative_question(self, speakers: List[str], topics: List[str], index: int) -> Dict[str, Any]:
-        """Generate comparative questions"""
+    def _generate_comparative_question(self, speakers: List[str], topics: List[str], index: int,
+                                       episode_context: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Generate comparative questions for podcast content"""
+        hosts = ['Ricky Ghoshroy', 'Brendan Kelly', 'Ricky', 'Brendan']
+        guests = [s for s in speakers if s not in hosts]
+
         if len(speakers) >= 2:
-            speaker1, speaker2 = random.sample(speakers, 2)
+            # Prefer host vs guest comparisons, or guest vs guest
+            if len(guests) >= 1 and len(hosts) >= 1:
+                speaker1 = random.choice(hosts)
+                speaker2 = random.choice(guests)
+            else:
+                speaker1, speaker2 = random.sample(speakers, 2)
+
             templates = [
-                f"How do {speaker1} and {speaker2} differ in their views on {random.choice(topics)}?",
-                f"What are the contrasting perspectives between {speaker1} and {speaker2} regarding {random.choice(topics)}?",
+                f"How do {speaker1} and {speaker2} differ in their legal interpretations of {random.choice(topics)}?",
+                f"What contrasting policy approaches do {speaker1} and {speaker2} advocate regarding {random.choice(topics)}?",
+                f"How do {speaker1}'s and {speaker2}'s constitutional perspectives on {random.choice(topics)} compare?",
+                f"What different analytical frameworks do {speaker1} and {speaker2} use for {random.choice(topics)}?",
                 f"Where do {speaker1} and {speaker2} find common ground on {random.choice(topics)}?",
-                f"How have {speaker1}'s and {speaker2}'s views on {random.choice(topics)} evolved over time?",
+                f"How do {speaker1}'s and {speaker2}'s professional backgrounds influence their views on {random.choice(topics)}?",
             ]
         else:
             templates = [
-                f"What different perspectives have the hosts presented on {random.choice(topics)}?",
-                f"How have the hosts' views on {random.choice(topics)} changed over time?",
-                f"What contradictory viewpoints have been discussed about {random.choice(topics)}?"
+                f"What different constitutional interpretations have been presented regarding {random.choice(topics)}?",
+                f"How have the hosts' perspectives on {random.choice(topics)} evolved across episodes?",
+                f"What contrasting policy solutions have been discussed for {random.choice(topics)}?",
+                f"What different legal schools of thought have been compared regarding {random.choice(topics)}?"
             ]
 
         return {
             'question': random.choice(templates),
             'difficulty': 'medium',
             'answer_type': 'comparative_analysis',
-            'metadata': {'requires_multiple_sources': True}
+            'metadata': {'requires_multiple_sources': True, 'content_type': 'podcast'}
         }
 
-    def _generate_opinion_question(self, speakers: List[str], topics: List[str], index: int) -> Dict[str, Any]:
+    def _generate_opinion_question(self, speakers: List[str], topics: List[str], index: int,
+                                   episode_context: Dict[str, Any] = None) -> Dict[str, Any]:
         """Generate opinion-based questions"""
         templates = [
             f"What are {random.choice(speakers)}'s personal opinions on {random.choice(topics)}?",
@@ -365,7 +501,8 @@ class GroundTruthGenerator:
             'metadata': {'requires_interpretation': True}
         }
 
-    def _generate_chronological_question(self, episodes: List[Dict], index: int) -> Dict[str, Any]:
+    def _generate_chronological_question(self, episodes: List[Dict], index: int,
+                                         episode_context: Dict[str, Any] = None) -> Dict[str, Any]:
         """Generate chronological questions"""
         recent_episodes = sorted(episodes, key=lambda x: x.get('episode_number', 0), reverse=True)[:5]
         older_episodes = sorted(episodes, key=lambda x: x.get('episode_number', 0))[:5]
