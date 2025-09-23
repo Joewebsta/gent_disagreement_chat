@@ -10,8 +10,9 @@ class RAGService:
     """Handles RAG operations"""
 
     # Default search parameters
-    DEFAULT_THRESHOLD = 0.5
-    DEFAULT_LIMIT = 5
+    DEFAULT_THRESHOLD = 0.6
+    DEFAULT_MIN_DOCS = 3
+    DEFAULT_MAX_DOCS = 10
 
     def __init__(self, database_name="gent_disagreement"):
         self.vector_search = VectorSearch(database_name)
@@ -21,12 +22,11 @@ class RAGService:
         """Implement RAG to answer questions using retrieved context"""
         try:
             # 1. Find relevant transcript segments
-            # search_results = self.vector_search.find_similar_above_threshold(
-            #     question, threshold=self.DEFAULT_THRESHOLD, limit=self.DEFAULT_LIMIT
-            # )
-
-            search_results = self.vector_search.find_most_similar(
-                question, limit=self.DEFAULT_LIMIT
+            search_results = self.vector_search.find_relevant_above_adaptive_threshold(
+                question,
+                min_docs=self.DEFAULT_MIN_DOCS,
+                max_docs=self.DEFAULT_MAX_DOCS,
+                similarity_threshold=self.DEFAULT_THRESHOLD,
             )
 
             # 2. Format context from search results
@@ -46,8 +46,11 @@ class RAGService:
         """Implement RAG with AI SDK compatible streaming format"""
         try:
             # 1. Find relevant transcript segments
-            search_results = self.vector_search.find_most_similar(
-                question, limit=self.DEFAULT_LIMIT
+            search_results = self.vector_search.find_relevant_above_adaptive_threshold(
+                question,
+                min_docs=self.DEFAULT_MIN_DOCS,
+                max_docs=self.DEFAULT_MAX_DOCS,
+                similarity_threshold=self.DEFAULT_THRESHOLD,
             )
 
             # 2. Format context from search results
@@ -67,12 +70,17 @@ class RAGService:
         """Implement RAG with simple text streaming for AI SDK compatibility"""
         try:
             # 1. Find relevant transcript segments
-            search_results = self.vector_search.find_most_similar(
-                question, limit=self.DEFAULT_LIMIT
+            search_results = self.vector_search.find_relevant_above_adaptive_threshold(
+                question,
+                min_docs=self.DEFAULT_MIN_DOCS,
+                max_docs=self.DEFAULT_MAX_DOCS,
+                similarity_threshold=self.DEFAULT_THRESHOLD,
             )
 
             # 2. Format context from search results
             formatted_results = self._format_search_results(search_results)
+
+            print(formatted_results)
 
             # 3. Create prompt with context
             prompt = self._create_prompt(formatted_results, question)
