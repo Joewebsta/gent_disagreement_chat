@@ -120,18 +120,55 @@ class RAGService:
         all_results.sort(key=lambda x: x["similarity"], reverse=True)
         return all_results[: self.DEFAULT_MAX_DOCS]
 
+    def group_by_episode(self, search_results):
+        """Group search results by episode with metadata"""
+        episode_groups = {}
+
+        for result in search_results:
+            episode_key = result["episode_number"]
+
+            if episode_key not in episode_groups:
+                episode_groups[episode_key] = {
+                    "episode": result["episode_number"],
+                    "title": result["title"],
+                    "date_published": result["date_published"],
+                    "segments": [],
+                    "similarities": [],
+                }
+
+            episode_groups[episode_key]["segments"].append(result)
+            episode_groups[episode_key]["similarities"].append(result["similarity"])
+
+        # Calculate average similarity for each episode and sort segments
+        for group in episode_groups.values():
+            group["avg_similarity"] = sum(group["similarities"]) / len(
+                group["similarities"]
+            )
+            group["segments"].sort(key=lambda x: x["similarity"], reverse=True)
+
+        # Convert to list and sort by average similarity
+        grouped_results = list(episode_groups.values())
+        grouped_results.sort(key=lambda x: x["avg_similarity"], reverse=True)
+
+        return grouped_results
+
     def _format_search_results(self, search_results):
-        """Format the search results into readable string"""
+        """Enhanced context formatting with hierarchical organization"""
+
+        # Group by episode
+        grouped_results = self.group_by_episode(search_results)
+        # print("grouped_results", grouped_results)
 
         formatted_result = ""
-        for result in search_results:
-            formatted_result += f"Speaker: {result['speaker']}\n"
-            formatted_result += f"Text: {result['text']}\n"
-            formatted_result += f"Similarity: {result['similarity']}\n  "
-            formatted_result += f"Episode: {result['episode_number']}\n"
-            formatted_result += f"Title: {result['title']}\n"
-            formatted_result += f"Date Published: {result['date_published']}\n"
-            formatted_result += f"--------------------------------\n"
+        for episode_group in grouped_results:
+            formatted_result += (
+                f"## Episode {episode_group['episode']}: {episode_group['title']}\n"
+            )
+            formatted_result += f"**Relevance**: {episode_group['avg_similarity']:.2f} (Published: {episode_group['date_published']})\n\n"
+
+            for result in episode_group["segments"]:
+                formatted_result += f"**{result['speaker']}**: {result['text']}\n"
+                formatted_result += f"*Similarity: {result['similarity']:.2f}*\n\n"
 
         return formatted_result
 
