@@ -25,15 +25,6 @@ async def health_check():
     return {"status": "healthy"}
 
 
-@app.post("/api/v1/chat")
-async def chat(request: Request):
-    data = await request.json()
-    user_text = data["versions"][0]["content"]
-    rag_service = RAGService()
-    response = rag_service.ask_question(user_text)
-    return {"message": response}
-
-
 @app.post("/api/chat")
 async def chat_ai_sdk(request: Request):
     """AI SDK compatible chat endpoint"""
@@ -71,22 +62,6 @@ async def chat_ai_sdk(request: Request):
     return StreamingResponse(
         content=rag_service.ask_question_text_stream(user_text),
         media_type="text/plain",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-        },
-    )
-
-
-@app.post("/api/v1/chat/stream")
-async def stream_chat(request: Request):
-    data = await request.json()
-    user_text = data["versions"][0]["content"]
-    rag_service = RAGService()
-
-    return StreamingResponse(
-        content=rag_service.ask_question(user_text),
-        media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",

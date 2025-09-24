@@ -1,9 +1,8 @@
 from .vector_search import VectorSearch
+from .query_enhancer import QueryEnhancer
 from openai import OpenAI
 import os
 import json
-from fastapi import FastAPI
-from fastapi.responses import StreamingResponse
 
 
 class RAGService:
@@ -14,73 +13,33 @@ class RAGService:
     DEFAULT_MIN_DOCS = 3
     DEFAULT_MAX_DOCS = 10
 
-    def __init__(self, database_name="gent_disagreement"):
+    def __init__(self, database_name="gent_disagreement", use_query_enhancement=True):
         self.vector_search = VectorSearch(database_name)
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        self.use_query_enhancement = use_query_enhancement
 
-    def ask_question(self, question, model="gpt-4o-mini"):
-        """Implement RAG to answer questions using retrieved context"""
-        try:
-            # 1. Find relevant transcript segments
-            search_results = self.vector_search.find_relevant_above_adaptive_threshold(
-                question,
-                min_docs=self.DEFAULT_MIN_DOCS,
-                max_docs=self.DEFAULT_MAX_DOCS,
-                similarity_threshold=self.DEFAULT_THRESHOLD,
-            )
-
-            # 2. Format context from search results
-            formatted_results = self._format_search_results(search_results)
-
-            # 3. Create prompt with context
-            prompt = self._create_prompt(formatted_results, question)
-
-            # 4. Generate response
-            return self._generate_streaming_response(prompt, model)
-
-        except Exception as e:
-            print(f"Error in RAG service: {e}")
-            raise e
-
-    def ask_question_ai_sdk_format(self, question, model="gpt-4o-mini"):
-        """Implement RAG with AI SDK compatible streaming format"""
-        try:
-            # 1. Find relevant transcript segments
-            search_results = self.vector_search.find_relevant_above_adaptive_threshold(
-                question,
-                min_docs=self.DEFAULT_MIN_DOCS,
-                max_docs=self.DEFAULT_MAX_DOCS,
-                similarity_threshold=self.DEFAULT_THRESHOLD,
-            )
-
-            # 2. Format context from search results
-            formatted_results = self._format_search_results(search_results)
-
-            # 3. Create prompt with context
-            prompt = self._create_prompt(formatted_results, question)
-
-            # 4. Generate response in AI SDK format
-            return self._generate_ai_sdk_streaming_response(prompt, model)
-
-        except Exception as e:
-            print(f"Error in RAG service: {e}")
-            raise e
+        if self.use_query_enhancement:
+            self.query_enhancer = QueryEnhancer()
 
     def ask_question_text_stream(self, question, model="gpt-4o-mini-2024-07-18"):
         """Implement RAG with simple text streaming for AI SDK compatibility"""
         try:
-            # 1. Find relevant transcript segments
-            search_results = self.vector_search.find_relevant_above_adaptive_threshold(
-                question,
-                min_docs=self.DEFAULT_MIN_DOCS,
-                max_docs=self.DEFAULT_MAX_DOCS,
-                similarity_threshold=self.DEFAULT_THRESHOLD,
-            )
+            # 1. Find relevant transcript segments with optional query enhancement
+            if self.use_query_enhancement:
+                enhanced_query = self.query_enhancer.enhance_query(question)
+                search_results = self._multi_query_search(enhanced_query)
+            else:
+                search_results = (
+                    self.vector_search.find_relevant_above_adaptive_threshold(
+                        question,
+                        min_docs=self.DEFAULT_MIN_DOCS,
+                        max_docs=self.DEFAULT_MAX_DOCS,
+                        similarity_threshold=self.DEFAULT_THRESHOLD,
+                    )
+                )
 
             # 2. Format context from search results
             formatted_results = self._format_search_results(search_results)
-
-            print(formatted_results)
 
             # 3. Create prompt with context
             prompt = self._create_prompt(formatted_results, question)
@@ -91,72 +50,6 @@ class RAGService:
         except Exception as e:
             print(f"Error in RAG service: {e}")
             raise e
-
-    def _generate_streaming_response(self, prompt, model):
-        """Generate streaming response using OpenAI LLM"""
-        try:
-            stream = self.client.chat.completions.create(
-                model=model, messages=[{"role": "user", "content": prompt}], stream=True
-            )
-
-            for chunk in stream:
-                if chunk.choices[0].delta.content:
-                    content = chunk.choices[0].delta.content
-                    # Prefix each line with 'data: ' per SSE spec, preserving empty lines
-                    for line in content.split("\n"):
-                        yield f"data: {line}\n"
-                    # End of event
-                    yield "\n"
-
-            yield "data: [DONE]\n\n"
-        except Exception as e:
-            print(f"Error in streaming response: {e}")
-            yield f"data: Error: {str(e)}\n\n"
-            yield "data: [DONE]\n\n"
-
-    def _generate_ai_sdk_streaming_response(self, prompt, model):
-        """Generate AI SDK compatible streaming response"""
-        import uuid
-
-        try:
-            # Generate a unique message ID for this response
-            message_id = str(uuid.uuid4())
-
-            # Send the initial message metadata
-            initial_chunk = {"id": message_id, "role": "assistant", "parts": []}
-            yield f"0:{json.dumps(initial_chunk)}\n"
-
-            # Create OpenAI stream
-            stream = self.client.chat.completions.create(
-                model=model, messages=[{"role": "user", "content": prompt}], stream=True
-            )
-
-            text_content = ""
-            for chunk in stream:
-                if chunk.choices[0].delta.content:
-                    content = chunk.choices[0].delta.content
-                    text_content += content
-
-                    # Send text delta in AI SDK format
-                    text_chunk = {"type": "text-delta", "textDelta": content}
-                    yield f"0:{json.dumps(text_chunk)}\n"
-
-            # Send final message with complete content
-            final_chunk = {
-                "id": message_id,
-                "role": "assistant",
-                "parts": [{"type": "text", "text": text_content}],
-            }
-            yield f"0:{json.dumps(final_chunk)}\n"
-
-            # Send done marker
-            yield f"d\n"
-
-        except Exception as e:
-            print(f"Error in AI SDK streaming response: {e}")
-            # Send error in AI SDK format
-            error_chunk = {"type": "error", "error": str(e)}
-            yield f"3:{json.dumps(error_chunk)}\n"
 
     def _generate_simple_text_stream(self, prompt, model):
         """Generate simple text stream compatible with AI SDK TextStreamChatTransport"""
@@ -174,6 +67,58 @@ class RAGService:
         except Exception as e:
             print(f"Error in simple text streaming: {e}")
             yield f"Error: {str(e)}"
+
+    def _multi_query_search(self, enhanced_query):
+        """Perform multi-query search using enhanced query variations"""
+        all_results = []
+        seen_texts = set()  # To avoid duplicates
+
+        # Search with original query
+        original_results = self.vector_search.find_relevant_above_adaptive_threshold(
+            enhanced_query["original"],
+            min_docs=self.DEFAULT_MIN_DOCS,
+            max_docs=self.DEFAULT_MAX_DOCS,
+            similarity_threshold=self.DEFAULT_THRESHOLD,
+        )
+        for result in original_results:
+            if result["text"] not in seen_texts:
+                all_results.append(result)
+                seen_texts.add(result["text"])
+
+        # Search with HyDE hypothetical answer if different from original
+        if enhanced_query["hyde"] != enhanced_query["original"]:
+            hyde_results = self.vector_search.find_relevant_above_adaptive_threshold(
+                enhanced_query["hyde"],
+                min_docs=2,
+                max_docs=5,
+                similarity_threshold=self.DEFAULT_THRESHOLD,
+            )
+            for result in hyde_results:
+                if result["text"] not in seen_texts:
+                    all_results.append(result)
+                    seen_texts.add(result["text"])
+
+        # Search with expanded query if significantly different
+        if (
+            len(enhanced_query["expanded"].split())
+            > len(enhanced_query["original"].split()) * 1.5
+        ):
+            expanded_results = (
+                self.vector_search.find_relevant_above_adaptive_threshold(
+                    enhanced_query["expanded"],
+                    min_docs=2,
+                    max_docs=5,
+                    similarity_threshold=self.DEFAULT_THRESHOLD,
+                )
+            )
+            for result in expanded_results:
+                if result["text"] not in seen_texts:
+                    all_results.append(result)
+                    seen_texts.add(result["text"])
+
+        # Sort by similarity and limit results
+        all_results.sort(key=lambda x: x["similarity"], reverse=True)
+        return all_results[: self.DEFAULT_MAX_DOCS]
 
     def _format_search_results(self, search_results):
         """Format the search results into readable string"""
