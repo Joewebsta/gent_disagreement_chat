@@ -3,7 +3,7 @@ import random
 from typing import List, Dict, Any, Tuple
 from datetime import datetime
 import sqlite3
-from gent_disagreement_rag.core.database_manager import DatabaseManager
+from gent_disagreement_chat.core.database_manager import DatabaseManager
 
 
 class GroundTruthGenerator:

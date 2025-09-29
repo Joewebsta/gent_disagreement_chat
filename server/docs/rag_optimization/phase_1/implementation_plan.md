@@ -34,7 +34,7 @@ Based on my analysis of the current codebase and the optimization recommendation
 ### **Implementation Steps**
 
 #### **Step 1.1: Extend VectorSearch Class**
-**File**: `server/src/gent_disagreement_rag/core/vector_search.py`
+**File**: `server/src/gent_disagreement_chat/core/vector_search.py`
 
 **Benefits of Two-Query Approach:**
 - **Efficiency**: Only runs fallback query when necessary
@@ -139,7 +139,7 @@ def find_similar_above_threshold(self, query, threshold=0.6, limit=10):
 <mark> STOPPED HERE
 
 #### **Step 1.2: Update RAGService Configuration**
-**File**: `server/src/gent_disagreement_rag/core/rag_service.py`
+**File**: `server/src/gent_disagreement_chat/core/rag_service.py`
 
 ```python
 class RAGService:
@@ -156,7 +156,7 @@ class RAGService:
 ```
 
 #### **Step 1.3: Update ask_question Methods**
-**File**: `server/src/gent_disagreement_rag/core/rag_service.py`
+**File**: `server/src/gent_disagreement_chat/core/rag_service.py`
 
 ```python
 def ask_question(self, question, model="gpt-4o-mini", 
@@ -203,7 +203,7 @@ def ask_question(self, question, model="gpt-4o-mini",
 ### **Implementation Steps**
 
 #### **Step 2.1: Create Query Enhancement Service**
-**File**: `server/src/gent_disagreement_rag/core/query_enhancer.py`
+**File**: `server/src/gent_disagreement_chat/core/query_enhancer.py`
 
 ```python
 import re
@@ -213,10 +213,10 @@ import os
 
 class QueryEnhancer:
     """Handles query preprocessing and enhancement for better retrieval"""
-    
+
     def __init__(self):
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        
+
         # Podcast-specific vocabulary expansion based on actual transcript analysis
         self.podcast_vocabulary = {
             'hosts': ['Ricky Ghoshroy', 'Ricky', 'Brendan Kelly', 'Brendan', 'hosts', 'speakers', 'panelists'],
@@ -226,14 +226,14 @@ class QueryEnhancer:
             'guest_experts': ['Professor', 'expert', 'analyst', 'journalist', 'academic'],
             'general_concepts': ['politics', 'economics', 'culture', 'philosophy', 'governance', 'policy']
         }
-    
+
     def enhance_query(self, question: str) -> Dict[str, Any]:
         """
         Enhance query using multiple strategies
-        
+
         Args:
             question: Original user question
-            
+
         Returns:
             Enhanced query data with multiple variations
         """
@@ -265,38 +265,38 @@ class QueryEnhancer:
                 specific_prompt = "Focus on thoughtful political commentary, nuanced debate, and analytical discussion between the hosts."
 
             prompt = f"{base_prompt} {specific_prompt} Keep it concise (1-2 sentences) and match the intellectual, conversational tone of the podcast."
-            
+
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=100,
                 temperature=0.7
             )
-            
+
             return response.choices[0].message.content.strip()
-            
+
         except Exception as e:
             print(f"Error generating hypothetical answer: {e}")
             return question  # Fallback to original
-    
+
     def _expand_query_keywords(self, question: str) -> str:
         """Expand query with relevant keywords and synonyms"""
         expanded_terms = []
-        
+
         # Add original terms
         expanded_terms.extend(question.split())
-        
+
         # Add podcast-specific vocabulary if relevant
         question_lower = question.lower()
         for category, terms in self.podcast_vocabulary.items():
             if any(term in question_lower for term in terms):
                 expanded_terms.extend([t for t in terms if t not in question_lower])
-        
+
         # Add common synonyms
         expanded_terms.extend(self._get_synonyms(question))
-        
+
         return ' '.join(list(set(expanded_terms)))  # Remove duplicates
-    
+
     def _classify_query_intent(self, question: str) -> str:
         """Classify the intent of the query based on podcast content patterns"""
         question_lower = question.lower()
@@ -327,19 +327,19 @@ class QueryEnhancer:
             return 'opinion'
         else:
             return 'general'
-    
+
     def _clean_and_normalize(self, question: str) -> str:
         """Clean and normalize the question"""
         # Remove extra whitespace
         cleaned = re.sub(r'\s+', ' ', question.strip())
-        
+
         # Remove common question words that don't add semantic value
         stop_words = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for']
         words = cleaned.split()
         cleaned_words = [w for w in words if w.lower() not in stop_words]
-        
+
         return ' '.join(cleaned_words)
-    
+
     def _get_synonyms(self, question: str) -> List[str]:
         """Get synonyms for key terms in the question"""
         # Enhanced synonym mapping based on podcast analysis
@@ -355,31 +355,31 @@ class QueryEnhancer:
             'conservative': ['right-wing', 'Republican', 'traditional'],
             'liberal': ['left-wing', 'Democratic', 'progressive']
         }
-        
+
         synonyms = []
         question_lower = question.lower()
-        
+
         for term, synonym_list in synonym_map.items():
             if term in question_lower:
                 synonyms.extend(synonym_list)
-        
+
         return synonyms
 ```
 
 #### **Step 2.2: Integrate Query Enhancement into RAGService**
-**File**: `server/src/gent_disagreement_rag/core/rag_service.py`
+**File**: `server/src/gent_disagreement_chat/core/rag_service.py`
 
 ```python
 from .query_enhancer import QueryEnhancer
 
 class RAGService:
-    def __init__(self, database_name="gent_disagreement", use_adaptive_threshold=True, 
+    def __init__(self, database_name="gent_disagreement", use_adaptive_threshold=True,
                  use_query_enhancement=True):
         self.vector_search = VectorSearch(database_name)
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         self.use_adaptive_threshold = use_adaptive_threshold
         self.use_query_enhancement = use_query_enhancement
-        
+
         if self.use_query_enhancement:
             self.query_enhancer = QueryEnhancer()
 
@@ -389,58 +389,58 @@ class RAGService:
             # 1. Enhance query if enabled
             if self.use_query_enhancement:
                 enhanced_query = self.query_enhancer.enhance_query(question)
-                
+
                 # Use multiple query variations for better retrieval
                 search_results = self._multi_query_search(enhanced_query)
             else:
                 search_results = self.vector_search.find_most_similar(question, limit=10)
-            
+
             # 2. Format context from search results
             formatted_results = self._format_search_results(search_results)
-            
+
             # 3. Create prompt with context
             prompt = self._create_prompt(formatted_results, question)
-            
+
             # 4. Generate response
             return self._generate_streaming_response(prompt, model)
-            
+
         except Exception as e:
             print(f"Error in enhanced RAG service: {e}")
             raise e
-    
+
     def _multi_query_search(self, enhanced_query: Dict[str, Any]) -> List[Dict]:
         """Search using multiple query variations and combine results"""
         all_results = []
-        
+
         # Search with original query
         original_results = self.vector_search.find_most_similar(enhanced_query['original'], limit=5)
         all_results.extend(original_results)
-        
+
         # Search with HyDE answer
         if enhanced_query['hyde']:
             hyde_results = self.vector_search.find_most_similar(enhanced_query['hyde'], limit=3)
             all_results.extend(hyde_results)
-        
+
         # Search with expanded query
         if enhanced_query['expanded']:
             expanded_results = self.vector_search.find_most_similar(enhanced_query['expanded'], limit=3)
             all_results.extend(expanded_results)
-        
+
         # Deduplicate and rerank
         return self._deduplicate_and_rerank(all_results)
-    
+
     def _deduplicate_and_rerank(self, results: List[Dict]) -> List[Dict]:
         """Remove duplicates and rerank results by similarity"""
         # Create unique key for each result
         seen = set()
         unique_results = []
-        
+
         for result in results:
             key = f"{result['speaker']}_{result['episode_number']}_{hash(result['text'])}"
             if key not in seen:
                 seen.add(key)
                 unique_results.append(result)
-        
+
         # Sort by similarity score
         return sorted(unique_results, key=lambda x: x['similarity'], reverse=True)[:10]
 
@@ -482,7 +482,7 @@ class RAGService:
 ```
 
 #### **Step 2.3: Add Speaker-Aware Query Processing**
-**File**: `server/src/gent_disagreement_rag/core/query_enhancer.py`
+**File**: `server/src/gent_disagreement_chat/core/query_enhancer.py`
 
 ```python
     def enhance_query_with_speaker_context(self, question: str) -> Dict[str, Any]:
@@ -543,7 +543,7 @@ class RAGService:
 ### **Implementation Steps**
 
 #### **Step 3.1: Enhanced Context Formatting**
-**File**: `server/src/gent_disagreement_rag/core/rag_service.py`
+**File**: `server/src/gent_disagreement_chat/core/rag_service.py`
 
 ```python
 def _format_search_results_enhanced(self, search_results):
@@ -605,7 +605,7 @@ def _get_relevance_indicator(self, similarity):
 ```
 
 #### **Step 3.2: Speaker-Aware Context Formatting**
-**File**: `server/src/gent_disagreement_rag/core/rag_service.py`
+**File**: `server/src/gent_disagreement_chat/core/rag_service.py`
 
 ```python
 def _format_search_results_speaker_aware(self, search_results, enhanced_query=None):
@@ -714,7 +714,7 @@ def _group_by_episode_and_speakers(self, search_results):
 ```
 
 #### **Step 3.3: Topic-Specific Formatting**
-**File**: `server/src/gent_disagreement_rag/core/rag_service.py`
+**File**: `server/src/gent_disagreement_chat/core/rag_service.py`
 
 ```python
 def _format_by_topic_intent(self, search_results, query_intent):
@@ -854,7 +854,7 @@ def _format_historical_comparison_results(self, search_results):
 ```
 
 #### **Step 3.4: Context Windows and Smart Filtering**
-**File**: `server/src/gent_disagreement_rag/core/rag_service.py`
+**File**: `server/src/gent_disagreement_chat/core/rag_service.py`
 
 ```python
 def _format_search_results_with_context(self, search_results, query_filters=None):
@@ -914,7 +914,7 @@ def _extract_basic_filters(self, query):
 ```
 
 #### **Step 3.3: Update Main Methods to Use Enhanced Formatting**
-**File**: `server/src/gent_disagreement_rag/core/rag_service.py`
+**File**: `server/src/gent_disagreement_chat/core/rag_service.py`
 
 ```python
 def ask_question(self, question, model="gpt-4o-mini", 
@@ -961,7 +961,7 @@ def ask_question(self, question, model="gpt-4o-mini",
 ## **Phase 4: Integration and Evaluation** ��
 
 ### **Step 4.1: Create Enhanced RAGService Factory**
-**File**: `server/src/gent_disagreement_rag/core/enhanced_rag_service.py`
+**File**: `server/src/gent_disagreement_chat/core/enhanced_rag_service.py`
 
 ```python
 from .rag_service import RAGService
@@ -1016,7 +1016,7 @@ class EnhancedRAGService(RAGService):
 ```
 
 ### **Step 4.2: Update Evaluation Framework**
-**File**: `server/src/gent_disagreement_rag/evaluation/optimization_evaluator.py`
+**File**: `server/src/gent_disagreement_chat/evaluation/optimization_evaluator.py`
 
 ```python
 from .precision_tracker import PrecisionTracker
@@ -1202,7 +1202,7 @@ class OptimizationEvaluator:
 ```
 
 #### **Step 4.2.1: Speaker Attribution Evaluator**
-**File**: `server/src/gent_disagreement_rag/evaluation/speaker_attribution_evaluator.py`
+**File**: `server/src/gent_disagreement_chat/evaluation/speaker_attribution_evaluator.py`
 
 ```python
 from typing import Dict, List, Any
@@ -1366,7 +1366,7 @@ class SpeakerAttributionEvaluator:
 ```
 
 ### **Step 4.3: Updated Configuration Management**
-**File**: `server/src/gent_disagreement_rag/core/config.py`
+**File**: `server/src/gent_disagreement_chat/core/config.py`
 
 ```python
 from dataclasses import dataclass
@@ -1415,7 +1415,7 @@ class RAGConfig:
     def from_environment(cls):
         """Create config from environment variables"""
         import os
-        
+
         return cls(
             enable_threshold_filtering=os.getenv('ENABLE_THRESHOLD_FILTERING', 'true').lower() == 'true',
             default_threshold=float(os.getenv('DEFAULT_THRESHOLD', '0.6')),

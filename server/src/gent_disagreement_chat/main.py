@@ -17,7 +17,7 @@ app.add_middleware(
 
 @app.get("/")
 async def read_root():
-    return {"message": "Welcome to gent_disagreement_rag"}
+    return {"message": "Welcome to gent_disagreement_chat"}
 
 
 @app.get("/health")
@@ -69,4 +69,4 @@ async def chat_ai_sdk(request: Request):
     )
 
 
-# poetry run uvicorn gent_disagreement_rag.main:app
+# poetry run uvicorn gent_disagreement_chat.main:app

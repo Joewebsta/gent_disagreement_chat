@@ -54,7 +54,7 @@ Raw Question → Query Enhancement → Multiple Embeddings → Enhanced Vector S
 ### Current Limitations:
 Looking at the existing code, the current implementation has several limitations:
 
-```20:30:server/src/gent_disagreement_rag/core/rag_service.py
+```20:30:server/src/gent_disagreement_chat/core/rag_service.py
 def ask_question(self, question, model="gpt-4o-mini"):
     """Implement RAG to answer questions using retrieved context"""
     try:

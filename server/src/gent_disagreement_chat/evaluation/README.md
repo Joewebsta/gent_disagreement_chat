@@ -18,7 +18,7 @@ The evaluation system consists of four main components:
 Start by evaluating your current RAG system to establish a baseline:
 
 ```bash
-cd server/src/gent_disagreement_rag/evaluation
+cd server/src/gent_disagreement_chat/evaluation
 python evaluation_runner.py baseline --questions 20
 ```
 
@@ -199,7 +199,7 @@ python evaluation_runner.py report --baseline-id baseline_123 --improvement-id i
 
 1. **Establish Baseline**
    ```bash
-   poetry run python src/gent_disagreement_rag/evaluation evaluation_runner.py baseline --questions 20
+   poetry run python src/gent_disagreement_chat/evaluation evaluation_runner.py baseline --questions 20
 
    python evaluation_runner.py baseline --questions 20
    ```

@@ -6,7 +6,7 @@ This guide explains how to track current precision and quantify improvements aft
 
 ### 1. Create Baseline (5 minutes)
 ```bash
-cd server/src/gent_disagreement_rag
+cd server/src/gent_disagreement_chat
 python -m evaluation.evaluation_runner baseline --questions 20
 ```
 
@@ -272,7 +272,7 @@ python -m evaluation.evaluation_runner compare \
 ## File Locations
 
 ```
-server/src/gent_disagreement_rag/
+server/src/gent_disagreement_chat/
 ├── evaluation/
 │   ├── __init__.py
 │   ├── precision_tracker.py      # Main tracking logic
