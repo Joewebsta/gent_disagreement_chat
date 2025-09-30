@@ -1,66 +1,11 @@
-import gentLogo from "@/assets/assistant-logo.png";
-import gdLogo from "@/assets/gd-logo.png";
-import { Action, Actions } from "@/components/ai-elements/actions";
-import {
-  Conversation,
-  ConversationContent,
-  ConversationEmptyState,
-  ConversationScrollButton,
-} from "@/components/ai-elements/conversation";
-import { Loader } from "@/components/ai-elements/loader";
-import { Message, MessageContent } from "@/components/ai-elements/message";
-import {
-  PromptInput,
-  PromptInputBody,
-  type PromptInputMessage,
-  PromptInputSubmit,
-  PromptInputTextarea,
-  PromptInputToolbar,
-  PromptInputTools,
-} from "@/components/ai-elements/prompt-input";
-import { Response } from "@/components/ai-elements/response";
-import { Suggestion, Suggestions } from "@/components/ai-elements/suggestion";
-import { Avatar, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
+import { type PromptInputMessage } from "@/components/ai-elements/prompt-input";
+import { ChatConversation } from "@/components/ChatConversation";
+import { ChatInput } from "@/components/ChatInput";
+import { InfoDialog } from "@/components/InfoDialog";
+import { getMessageText } from "@/lib/message-utils";
 import { useChat } from "@ai-sdk/react";
-import { TextStreamChatTransport, type TextUIPart, type UIMessage } from "ai";
-import { CopyIcon, InfoIcon, RefreshCcwIcon, User } from "lucide-react";
-import { Fragment, useState } from "react";
-
-function isTextPart(part: unknown): part is TextUIPart {
-  if (!part || typeof part !== "object" || part === null) {
-    return false;
-  }
-
-  const candidate = part as Record<string, unknown>;
-  return candidate.type === "text" && typeof candidate.text === "string";
-}
-
-function getMessageText(message: UIMessage): string {
-  return (
-    message.parts
-      ?.filter(isTextPart)
-      .map((part) => part.text)
-      .join("") || ""
-  );
-}
-
-function hasMessageContent(message: UIMessage): boolean {
-  return (
-    message.parts?.some(
-      (part) => isTextPart(part) && part.text && part.text.trim().length > 0
-    ) || false
-  );
-}
+import { TextStreamChatTransport } from "ai";
+import { useState } from "react";
 
 function App() {
   const [input, setInput] = useState<string>("");
@@ -115,187 +60,20 @@ function App() {
 
   return (
     <>
-      {messages.length === 0 && (
-        <Dialog>
-          <DialogTrigger className="cursor-pointer" asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="fixed top-4 right-4 z-10"
-              aria-label="Information"
-            >
-              <InfoIcon className="h-4 w-4 text-muted-foreground" />
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>About A Gentleman's Disagreement</DialogTitle>
-              <DialogDescription>
-                Welcome to the A Gentleman's Disagreement chatbot! This AI
-                assistant can help you explore topics and perspectives discussed
-                on the podcast.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Ask questions about specific episodes, guests, topics, or
-                general podcast information. The AI has been trained on podcast
-                content to provide relevant and helpful responses.
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Try asking about recent episodes, specific topics of interest,
-                or request summaries of discussions.
-              </p>
-              <p className="text-sm text-muted-foreground">
-                This chatbot was created by friend of the pod,{" "}
-                <a
-                  href="https://www.linkedin.com/in/joeswebster/"
-                  className="text-blue-500"
-                  target="_blank"
-                >
-                  Joe Webster
-                </a>
-                .
-              </p>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
+      {messages.length === 0 && <InfoDialog />}
 
       <div className="max-w-4xl mx-auto p-6 relative size-full h-screen">
         <div className="flex flex-col h-full">
-          {/* <header className="mb-2 text-center">
-          <h1 className="text-sm font-semibold text-gray-900">
-            A Gentleman's Disagreement Chatbot
-          </h1>
-        </header> */}
-          <Conversation className="flex-1">
-            <ConversationContent className="h-full">
-              {messages.length === 0 ? (
-                <ConversationEmptyState
-                  title="Welcome to A Gentleman's Disagreement"
-                  description="Start a conversation to explore the podcast"
-                  icon={
-                    <img
-                      src={gdLogo}
-                      alt="Gentleman's Disagreement Logo"
-                      className="w-52 h-52 rounded-2xl object-contain"
-                    />
-                  }
-                />
-              ) : (
-                messages.map((message) => (
-                  <div key={message.id}>
-                    {message.role === "assistant" &&
-                    !hasMessageContent(message) ? (
-                      <Message from="assistant" key={`${message.id}-loading`}>
-                        <MessageContent>
-                          <Loader className="my-[2px]" />
-                        </MessageContent>
-                        <div className="hidden sm:block">
-                          <Avatar className={cn("size-8")}>
-                            <AvatarImage
-                              alt=""
-                              className="mt-0 mb-0"
-                              src={gentLogo}
-                            />
-                          </Avatar>
-                        </div>
-                      </Message>
-                    ) : (
-                      message.parts.map((part, i) => {
-                        switch (part.type) {
-                          case "text":
-                            return (
-                              <Fragment key={`${message.id}-${i}`}>
-                                <Message
-                                  from={message.role as "user" | "assistant"}
-                                >
-                                  <MessageContent>
-                                    <Response>{part.text}</Response>
-                                  </MessageContent>
-                                  <div className="hidden sm:block">
-                                    {message.role === "user" ? (
-                                      <div className="size-8 rounded-full bg-black flex items-center justify-center">
-                                        <User
-                                          strokeWidth={3}
-                                          className="size-4 text-white"
-                                        />
-                                      </div>
-                                    ) : (
-                                      <Avatar className={cn("size-8")}>
-                                        <AvatarImage
-                                          alt=""
-                                          className="mt-0 mb-0"
-                                          src={gentLogo}
-                                        />
-                                      </Avatar>
-                                    )}
-                                  </div>
-                                </Message>
-                                {message.role === "assistant" &&
-                                  i === message.parts.length - 1 &&
-                                  message.id === messages.at(-1)?.id && (
-                                    <Actions className="mt-2">
-                                      <Action
-                                        onClick={() => regenerate()}
-                                        label="Retry"
-                                      >
-                                        <RefreshCcwIcon className="size-3" />
-                                      </Action>
-                                      <Action
-                                        onClick={() =>
-                                          navigator.clipboard.writeText(
-                                            part.text
-                                          )
-                                        }
-                                        label="Copy"
-                                      >
-                                        <CopyIcon className="size-3" />
-                                      </Action>
-                                    </Actions>
-                                  )}
-                              </Fragment>
-                            );
-                          default:
-                            return null;
-                        }
-                      })
-                    )}
-                  </div>
-                ))
-              )}
-            </ConversationContent>
-            <ConversationScrollButton />
-          </Conversation>
-          <div className="mt-4">
-            <Suggestions>
-              {suggestions.map((suggestion) => (
-                <Suggestion
-                  key={suggestion}
-                  onClick={handleSuggestionClick}
-                  suggestion={suggestion}
-                />
-              ))}
-            </Suggestions>
-
-            <PromptInput onSubmit={handleSubmit} className="mt-4">
-              <PromptInputBody>
-                <PromptInputTextarea
-                  onChange={(e) => setInput(e.target.value)}
-                  value={input}
-                />
-              </PromptInputBody>
-              <PromptInputToolbar>
-                <PromptInputTools></PromptInputTools>
-                <PromptInputSubmit
-                  disabled={!input && !status}
-                  status={status}
-                  onStop={stop}
-                />
-              </PromptInputToolbar>
-            </PromptInput>
-          </div>
+          <ChatConversation messages={messages} onRegenerate={regenerate} />
+          <ChatInput
+            input={input}
+            status={status}
+            suggestions={suggestions}
+            onInputChange={setInput}
+            onSubmit={handleSubmit}
+            onSuggestionClick={handleSuggestionClick}
+            onStop={stop}
+          />
         </div>
       </div>
     </>
