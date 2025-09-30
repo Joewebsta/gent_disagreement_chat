@@ -15,5 +15,11 @@ export default defineConfig({
   build: {
     outDir: "dist",
     sourcemap: false,
+    rollupOptions: {
+      external: [],
+    },
+  },
+  optimizeDeps: {
+    include: ["@/lib/message-utils", "@/lib/utils"],
   },
 });
