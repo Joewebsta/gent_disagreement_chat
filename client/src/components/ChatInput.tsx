@@ -8,10 +8,11 @@ import {
   PromptInputTools,
 } from "@/components/ai-elements/prompt-input";
 import { Suggestion, Suggestions } from "@/components/ai-elements/suggestion";
+import type { ChatStatus } from "ai";
 
 interface ChatInputProps {
   input: string;
-  status: string;
+  status: ChatStatus;
   suggestions: string[];
   onInputChange: (value: string) => void;
   onSubmit: (message: PromptInputMessage) => void;
