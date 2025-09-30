@@ -2,7 +2,7 @@ import { type PromptInputMessage } from "@/components/ai-elements/prompt-input";
 import { ChatConversation } from "@/components/ChatConversation";
 import { ChatInput } from "@/components/ChatInput";
 import { InfoDialog } from "@/components/InfoDialog";
-import { getMessageText } from "@/lib/message-utils";
+import { getMessageText } from "@/lib/message-utils.ts";
 import { useChat } from "@ai-sdk/react";
 import { TextStreamChatTransport } from "ai";
 import { useState } from "react";
