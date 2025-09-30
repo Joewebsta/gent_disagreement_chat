@@ -2,9 +2,9 @@ import { type PromptInputMessage } from "@/components/ai-elements/prompt-input";
 import { ChatConversation } from "@/components/ChatConversation";
 import { ChatInput } from "@/components/ChatInput";
 import { InfoDialog } from "@/components/InfoDialog";
-import { getMessageText } from "@/lib/message-utils.ts";
+import { isTextPart } from "@/lib/message-utils.ts";
 import { useChat } from "@ai-sdk/react";
-import { TextStreamChatTransport } from "ai";
+import { TextStreamChatTransport, UIMessage } from "ai";
 import { useState } from "react";
 
 function App() {
@@ -57,6 +57,15 @@ function App() {
       }
     }
   };
+
+  function getMessageText(message: UIMessage): string {
+    return (
+      message.parts
+        ?.filter(isTextPart)
+        .map((part) => part.text)
+        .join("") || ""
+    );
+  }
 
   return (
     <>
