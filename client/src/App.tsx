@@ -12,7 +12,7 @@ function App() {
 
   const suggestions = [
     "What is a Gentleman's Disagreement?",
-    "What are the 3 most recent episodes?",
+    "Summarize the most recent episodes",
   ];
 
   const { messages, sendMessage, stop, status } = useChat({
