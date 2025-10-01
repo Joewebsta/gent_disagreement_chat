@@ -64,7 +64,11 @@ function App() {
 
       <div className="max-w-4xl mx-auto p-6 relative size-full h-screen">
         <div className="flex flex-col h-full">
-          <ChatConversation messages={messages} onRegenerate={regenerate} />
+          <ChatConversation
+            messages={messages}
+            onRegenerate={regenerate}
+            status={status}
+          />
           <ChatInput
             input={input}
             status={status}
