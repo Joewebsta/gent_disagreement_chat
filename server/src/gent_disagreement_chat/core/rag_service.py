@@ -167,7 +167,7 @@ class RAGService:
             formatted_result += f"**Relevance**: {episode_group['avg_similarity']:.2f} (Published: {episode_group['date_published']})\n\n"
 
             for result in episode_group["segments"]:
-                formatted_result += f"**{result['speaker']}**: {result['text']}\n"
+                formatted_result += f"**{result['name']}**: {result['text']}\n"
                 formatted_result += f"*Similarity: {result['similarity']:.2f}*\n\n"
 
         return formatted_result

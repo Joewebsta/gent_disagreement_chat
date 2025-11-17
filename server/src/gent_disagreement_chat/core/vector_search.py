@@ -16,14 +16,15 @@ class VectorSearch:
 
             query_sql = """
                 SELECT
-                    ts.speaker,
+                    s.name,
                     ts.text,
                     e.episode_number,
                     e.title,
                     e.date_published,
                     1 - (ts.embedding <=> %s::vector) as similarity
                 FROM transcript_segments ts
-                JOIN episodes e ON ts.episode_id = e.id
+                JOIN episodes e ON ts.episode_id = e.episode_number
+                JOIN speakers s ON ts.speaker_id = s.id
                 ORDER BY similarity DESC
                 LIMIT %s
                 """
@@ -54,14 +55,15 @@ class VectorSearch:
             # Query 1: Try to get results above threshold
             threshold_sql = """
                 SELECT
-                    ts.speaker,
+                    s.name,
                     ts.text,
                     e.episode_number,
                     e.title,
                     e.date_published,
                     1 - (ts.embedding <=> %s::vector) as similarity
                 FROM transcript_segments ts
-                JOIN episodes e ON ts.episode_id = e.id
+                JOIN episodes e ON ts.episode_id = e.episode_number
+                JOIN speakers s ON ts.speaker_id = s.id
                 WHERE 1 - (ts.embedding <=> %s::vector) >= %s
                 ORDER BY similarity DESC
                 LIMIT %s
@@ -78,14 +80,15 @@ class VectorSearch:
             # Query 2: Fallback to top N results regardless of threshold
             fallback_sql = """
                 SELECT
-                    ts.speaker,
+                    s.name,
                     ts.text,
                     e.episode_number,
                     e.title,
                     e.date_published,
                     1 - (ts.embedding <=> %s::vector) as similarity
                 FROM transcript_segments ts
-                JOIN episodes e ON ts.episode_id = e.id
+                JOIN episodes e ON ts.episode_id = e.episode_number
+                JOIN speakers s ON ts.speaker_id = s.id
                 ORDER BY similarity DESC
                 LIMIT %s
             """
