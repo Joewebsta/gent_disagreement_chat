@@ -1,8 +1,6 @@
 from .vector_search import VectorSearch
-from .query_enhancer import QueryEnhancer
 from openai import OpenAI
 import os
-import json
 
 
 class RAGService:
@@ -13,30 +11,20 @@ class RAGService:
     DEFAULT_MIN_DOCS = 3
     DEFAULT_MAX_DOCS = 10
 
-    def __init__(self, database_name="gent_disagreement", use_query_enhancement=True):
+    def __init__(self, database_name="gent_disagreement"):
         self.vector_search = VectorSearch(database_name)
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        self.use_query_enhancement = use_query_enhancement
-
-        if self.use_query_enhancement:
-            self.query_enhancer = QueryEnhancer()
 
     def ask_question_text_stream(self, question, model="gpt-4o-mini-2024-07-18"):
         """Implement RAG with simple text streaming for AI SDK compatibility"""
         try:
-            # 1. Find relevant transcript segments with optional query enhancement
-            if self.use_query_enhancement:
-                enhanced_query = self.query_enhancer.enhance_query(question)
-                search_results = self._multi_query_search(enhanced_query)
-            else:
-                search_results = (
-                    self.vector_search.find_relevant_above_adaptive_threshold(
-                        question,
-                        min_docs=self.DEFAULT_MIN_DOCS,
-                        max_docs=self.DEFAULT_MAX_DOCS,
-                        similarity_threshold=self.DEFAULT_THRESHOLD,
-                    )
-                )
+            # 1. Find relevant transcript segments
+            search_results = self.vector_search.find_relevant_above_adaptive_threshold(
+                question,
+                min_docs=self.DEFAULT_MIN_DOCS,
+                max_docs=self.DEFAULT_MAX_DOCS,
+                similarity_threshold=self.DEFAULT_THRESHOLD,
+            )
 
             # 2. Format context from search results
             formatted_results = self._format_search_results(search_results)
@@ -67,58 +55,6 @@ class RAGService:
         except Exception as e:
             print(f"Error in simple text streaming: {e}")
             yield f"Error: {str(e)}"
-
-    def _multi_query_search(self, enhanced_query):
-        """Perform multi-query search using enhanced query variations"""
-        all_results = []
-        seen_texts = set()  # To avoid duplicates
-
-        # Search with original query
-        original_results = self.vector_search.find_relevant_above_adaptive_threshold(
-            enhanced_query["original"],
-            min_docs=self.DEFAULT_MIN_DOCS,
-            max_docs=self.DEFAULT_MAX_DOCS,
-            similarity_threshold=self.DEFAULT_THRESHOLD,
-        )
-        for result in original_results:
-            if result["text"] not in seen_texts:
-                all_results.append(result)
-                seen_texts.add(result["text"])
-
-        # Search with HyDE hypothetical answer if different from original
-        if enhanced_query["hyde"] != enhanced_query["original"]:
-            hyde_results = self.vector_search.find_relevant_above_adaptive_threshold(
-                enhanced_query["hyde"],
-                min_docs=2,
-                max_docs=5,
-                similarity_threshold=self.DEFAULT_THRESHOLD,
-            )
-            for result in hyde_results:
-                if result["text"] not in seen_texts:
-                    all_results.append(result)
-                    seen_texts.add(result["text"])
-
-        # Search with expanded query if significantly different
-        if (
-            len(enhanced_query["expanded"].split())
-            > len(enhanced_query["original"].split()) * 1.5
-        ):
-            expanded_results = (
-                self.vector_search.find_relevant_above_adaptive_threshold(
-                    enhanced_query["expanded"],
-                    min_docs=2,
-                    max_docs=5,
-                    similarity_threshold=self.DEFAULT_THRESHOLD,
-                )
-            )
-            for result in expanded_results:
-                if result["text"] not in seen_texts:
-                    all_results.append(result)
-                    seen_texts.add(result["text"])
-
-        # Sort by similarity and limit results
-        all_results.sort(key=lambda x: x["similarity"], reverse=True)
-        return all_results[: self.DEFAULT_MAX_DOCS]
 
     def group_by_episode(self, search_results):
         """Group search results by episode with metadata"""
