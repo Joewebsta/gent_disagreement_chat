@@ -16,8 +16,6 @@ This document provides a detailed, step-by-step analysis of how the retrieval pr
 
 ## Complete Retrieval Flow Diagram
 
-# <mark> STOPPED: Made it partially through diagram below
-
 ```
 User Query
     ↓
