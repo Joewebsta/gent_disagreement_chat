@@ -1,43 +1,163 @@
-from .vector_search import VectorSearch
-from openai import OpenAI
 import os
+from typing import Any, Dict
+
+from openai import OpenAI
+
+from .query_parser import QueryParser
+from .vector_search import VectorSearch
 
 
 class RAGService:
-    """Handles RAG operations"""
+    """
+    Handles RAG (Retrieval-Augmented Generation) operations for the podcast chat.
 
-    # Default search parameters
-    DEFAULT_THRESHOLD = 0.6
-    DEFAULT_MIN_DOCS = 3
-    DEFAULT_MAX_DOCS = 10
+    This service orchestrates the retrieval pipeline:
+    1. Parse user query to extract filters (episode, speaker, date)
+    2. Search vector database with filters applied
+    3. Format results into context for the LLM
+    4. Stream LLM response to the user
 
-    def __init__(self, database_name="gent_disagreement"):
+    Data flow:
+        User Question → QueryParser → VectorSearch → Context Formatting → LLM → Response
+
+    Example usage:
+        >>> service = RAGService()
+        >>> for chunk in service.ask_question_text_stream("What did Ricky say about tariffs?"):
+        ...     print(chunk, end="")
+    """
+
+    # Default search parameters for queries without specific constraints.
+    # These values balance coverage (enough context) with precision (relevant results).
+    DEFAULT_THRESHOLD = 0.6  # Minimum similarity score for inclusion
+    DEFAULT_MIN_DOCS = 3  # Minimum documents to return (triggers fallback if not met)
+    DEFAULT_MAX_DOCS = 10  # Maximum documents to return
+
+    # Adaptive parameters by question type.
+    # Different query types benefit from different retrieval strategies.
+    # Format: {question_type: {'min_docs': int, 'max_docs': int, 'threshold': float}}
+    ADAPTIVE_PARAMS = {
+        # Episode-scoped: Need more docs to cover the full episode context
+        "episode_scoped": {"min_docs": 5, "max_docs": 15, "threshold": 0.5},
+        # Speaker-specific: Moderate coverage for speaker's views
+        "speaker_specific": {"min_docs": 3, "max_docs": 10, "threshold": 0.6},
+        # Temporal: Search across time period, need decent coverage
+        "temporal": {"min_docs": 3, "max_docs": 10, "threshold": 0.55},
+        # Comparative: Need diverse results to compare viewpoints
+        "comparative": {"min_docs": 5, "max_docs": 12, "threshold": 0.55},
+        # Factual: Fewer, more precise results
+        "factual": {"min_docs": 2, "max_docs": 5, "threshold": 0.65},
+        # Analytical: More context for deep analysis
+        "analytical": {"min_docs": 4, "max_docs": 12, "threshold": 0.55},
+        # Topical: Default balanced approach
+        "topical": {"min_docs": 3, "max_docs": 10, "threshold": 0.6},
+    }
+
+    def __init__(self, database_name: str = "gent_disagreement"):
+        """
+        Initialize RAGService with database connection and query parser.
+
+        Args:
+            database_name: PostgreSQL database name containing podcast transcripts.
+                           Default: "gent_disagreement"
+        """
         self.vector_search = VectorSearch(database_name)
+        self.query_parser = QueryParser()
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-    def ask_question_text_stream(self, question, model="gpt-4o-mini-2024-07-18"):
-        """Implement RAG with simple text streaming for AI SDK compatibility"""
+    def ask_question_text_stream(
+        self, question: str, model: str = "gpt-4o-mini-2024-07-18"
+    ):
+        """
+        Process a user question through the RAG pipeline with text streaming.
+
+        This method orchestrates the full retrieval-augmented generation flow:
+        1. Parse the question to extract metadata filters (episode, speaker, date)
+        2. Classify the question type for adaptive retrieval parameters
+        3. Search the vector database with filters applied
+        4. Format results into context for the LLM
+        5. Stream the LLM response
+
+        Args:
+            question: User's natural language question.
+                      Example: "What did Ricky say about tariffs in episode 180?"
+
+            model: OpenAI model identifier for response generation.
+                   Default: "gpt-4o-mini-2024-07-18"
+
+        Returns:
+            Generator[str]: Yields text chunks as the LLM generates them.
+        """
         try:
-            # 1. Find relevant transcript segments
-            search_results = self.vector_search.find_relevant_above_adaptive_threshold(
+            # 1. Parse query to extract metadata filters.
+            # This enables episode-scoped, speaker-specific, and temporal filtering.
+            filters = self.query_parser.extract_filters(question)
+
+            # 2. Classify question type for adaptive retrieval parameters.
+            # Different question types benefit from different retrieval strategies.
+            question_type = self.query_parser.classify_question_type(question)
+
+            # 3. Get adaptive parameters based on question type.
+            # This adjusts min_docs, max_docs, and threshold for optimal retrieval.
+            params = self._get_adaptive_params(question_type, filters)
+
+            # 4. Find relevant transcript segments with filters applied.
+            # Filters narrow down results to specific episodes/speakers/dates.
+            search_results = self.vector_search.find_relevant_with_filters(
                 question,
-                min_docs=self.DEFAULT_MIN_DOCS,
-                max_docs=self.DEFAULT_MAX_DOCS,
-                similarity_threshold=self.DEFAULT_THRESHOLD,
+                filters=filters,
+                min_docs=params["min_docs"],
+                max_docs=params["max_docs"],
+                similarity_threshold=params["threshold"],
             )
 
-            # 2. Format context from search results
+            # 5. Format context from search results into structured text.
+            # Groups by episode and includes metadata for LLM context.
             formatted_results = self._format_search_results(search_results)
 
-            # 3. Create prompt with context
+            # 6. Create prompt with context for the LLM.
             prompt = self._create_prompt(formatted_results, question)
 
-            # 4. Generate simple text stream
+            # 7. Generate and stream LLM response.
             return self._generate_simple_text_stream(prompt, model)
 
         except Exception as e:
             print(f"Error in RAG service: {e}")
             raise e
+
+    def _get_adaptive_params(self, question_type: str) -> Dict[str, Any]:
+        """
+        Get retrieval parameters adapted to the question type and filters.
+
+        Different question types benefit from different retrieval strategies:
+        - Episode-scoped queries need more documents to cover the full episode
+        - Factual queries need fewer, more precise results
+        - Analytical queries need more context for deep analysis
+
+        Args:
+            question_type: Classification from QueryParser.classify_question_type().
+                           One of: 'episode_scoped', 'speaker_specific', 'temporal',
+                           'comparative', 'factual', 'analytical', 'topical'
+
+        Returns:
+            dict: Retrieval parameters with structure:
+                  {
+                      'min_docs': int,   # Minimum documents to return
+                      'max_docs': int,   # Maximum documents to return
+                      'threshold': float  # Similarity threshold (0.0 to 1.0)
+                  }
+        """
+        # Look up parameters for the question type, falling back to defaults.
+        params = self.ADAPTIVE_PARAMS.get(
+            question_type,
+            {
+                "min_docs": self.DEFAULT_MIN_DOCS,
+                "max_docs": self.DEFAULT_MAX_DOCS,
+                "threshold": self.DEFAULT_THRESHOLD,
+            },
+        )
+
+        # Return a copy to avoid mutating the class constant
+        return dict(params)
 
     def _generate_simple_text_stream(self, prompt, model):
         """Generate simple text stream compatible with AI SDK TextStreamChatTransport"""
