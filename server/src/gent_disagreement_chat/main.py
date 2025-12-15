@@ -1,5 +1,6 @@
 import os
 
+import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -73,4 +74,21 @@ async def chat_ai_sdk(request: Request):
     )
 
 
-# poetry run uvicorn gent_disagreement_chat.main:app
+def dev():
+    """Run the server in development mode with auto-reload."""
+    uvicorn.run(
+        "gent_disagreement_chat.main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True,
+    )
+
+
+def start():
+    """Run the server in production mode without auto-reload."""
+    uvicorn.run(
+        "gent_disagreement_chat.main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=False,
+    )
