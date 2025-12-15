@@ -69,39 +69,12 @@ class QueryParser:
     """Parses natural language queries to extract structured filters for vector search."""
 
     def __init__(self):
-        """Initialize QueryParser with empty cache."""
-        self._cached_query: Optional[str] = None
-        self._cached_episode_number: Optional[int] = None
-        self._cached_speaker: Optional[str] = None
-        self._cached_date_range: Optional[Tuple[datetime, datetime]] = None
-
-    def parse(self, query: str) -> None:
-        """
-        Parse a query and cache all extracted values.
-
-        This method should be called once per query to extract all filters,
-        avoiding redundant regex operations when multiple methods are called
-        with the same query.
-
-        Args:
-            query: User's natural language question.
-        """
-        # Only re-parse if this is a different query
-        if self._cached_query == query:
-            return
-
-        # Extract and cache all values by calling the public methods
-        # They will extract and cache themselves
-        self._cached_query = query
-        self.extract_episode_number(query)
-        self.extract_speaker(query)
-        self.extract_date_range(query)
+        """Initialize QueryParser."""
+        pass
 
     def extract_episode_number(self, query: str) -> Optional[int]:
         """
         Extract episode number from a natural language query.
-
-        Uses cached value if parse() was called with this query, otherwise extracts directly.
 
         Args:
             query: User's natural language question.
@@ -109,11 +82,6 @@ class QueryParser:
         Returns:
             Extracted episode number if found, None otherwise.
         """
-        # Use cached value if this query was already parsed
-        if self._cached_query == query:
-            return self._cached_episode_number
-
-        # Otherwise extract
         patterns = [
             r"episode\s+number\s+(\d+)",  # "episode number 180"
             r"episode\s+(\d+)",  # "episode 180"
@@ -122,24 +90,16 @@ class QueryParser:
             r"#(\d+)",  # "#180"
         ]
 
-        result = None
         for pattern in patterns:
             match = re.search(pattern, query, re.IGNORECASE)
             if match:
-                result = int(match.group(1))
-                break
+                return int(match.group(1))
 
-        # Cache if this is the current query being parsed
-        if self._cached_query == query:
-            self._cached_episode_number = result
-
-        return result
+        return None
 
     def extract_speaker(self, query: str) -> Optional[str]:
         """
         Extract speaker name from a natural language query.
-
-        Uses cached value if parse() was called with this query, otherwise extracts directly.
 
         Args:
             query: User's natural language question.
@@ -147,40 +107,27 @@ class QueryParser:
         Returns:
             Full speaker name for database filtering, or None if no specific speaker mentioned.
         """
-        # Use cached value if this query was already parsed
-        if self._cached_query == query:
-            return self._cached_speaker
-
-        # Otherwise extract
         query_lower = query.lower()
 
         # First check for special keywords (hosts, guest, etc.)
         # These take precedence over individual speaker names.
-        result = None
         for keyword, value in SPECIAL_SPEAKER_KEYWORDS.items():
             # Use word boundary matching to avoid partial matches
             if re.search(rf"\b{keyword}\b", query_lower):
-                result = value
-                break
+                return value
 
         # Then check for individual speaker name mappings
-        if result is None:
-            for name_variant, full_name in SPEAKER_MAPPINGS.items():
-                if re.search(rf"\b{name_variant}\b", query_lower):
-                    result = full_name
-                    break
+        for name_variant, full_name in SPEAKER_MAPPINGS.items():
+            if re.search(rf"\b{name_variant}\b", query_lower):
+                return full_name
 
-        # Cache if this is the current query being parsed
-        if self._cached_query == query:
-            self._cached_speaker = result
-
-        return result
+        print("result", None)
+        print("+++++++++++++++++++++++++++++++++++++++")
+        return None
 
     def extract_date_range(self, query: str) -> Optional[Tuple[datetime, datetime]]:
         """
         Extract date range from a natural language query.
-
-        Uses cached value if parse() was called with this query, otherwise extracts directly.
 
         Args:
             query: User's natural language question.
@@ -188,14 +135,8 @@ class QueryParser:
         Returns:
             Tuple of (start_date, end_date) as datetime objects, or None if no temporal reference detected.
         """
-        # Use cached value if this query was already parsed
-        if self._cached_query == query:
-            return self._cached_date_range
-
-        # Otherwise extract
         query_lower = query.lower()
         today = datetime.now()
-        result = None
 
         # Pattern: "between YYYY and YYYY"
         # Example: "between 2023 and 2024" → (2023-01-01, 2024-12-31)
@@ -203,51 +144,45 @@ class QueryParser:
         if between_match:
             start_year = int(between_match.group(1))
             end_year = int(between_match.group(2))
-            result = (datetime(start_year, 1, 1), datetime(end_year, 12, 31))
+            return (datetime(start_year, 1, 1), datetime(end_year, 12, 31))
         # Pattern: "in YYYY"
         # Example: "in 2023" → (2023-01-01, 2023-12-31)
         elif in_year_match := re.search(r"\bin\s+(\d{4})\b", query_lower):
             year = int(in_year_match.group(1))
-            result = (datetime(year, 1, 1), datetime(year, 12, 31))
+            return (datetime(year, 1, 1), datetime(year, 12, 31))
         # Pattern: "since YYYY"
         # Example: "since 2024" → (2024-01-01, today)
         elif since_match := re.search(r"since\s+(\d{4})", query_lower):
             year = int(since_match.group(1))
-            result = (datetime(year, 1, 1), today)
+            return (datetime(year, 1, 1), today)
         # Pattern: "last N months"
         # Example: "last 3 months" → (3 months ago, today)
         elif last_months_match := re.search(r"last\s+(\d+)\s+months?", query_lower):
             months = int(last_months_match.group(1))
             # Approximate months as 30 days each
             start_date = today - timedelta(days=months * 30)
-            result = (start_date, today)
+            return (start_date, today)
         # Pattern: "last N weeks"
         # Example: "last 2 weeks" → (2 weeks ago, today)
         elif last_weeks_match := re.search(r"last\s+(\d+)\s+weeks?", query_lower):
             weeks = int(last_weeks_match.group(1))
             start_date = today - timedelta(weeks=weeks)
-            result = (start_date, today)
+            return (start_date, today)
         # Pattern: "this year"
         # Example: "this year" → (current year Jan 1, today)
         elif "this year" in query_lower:
-            result = (datetime(today.year, 1, 1), today)
+            return (datetime(today.year, 1, 1), today)
         # Pattern: "last year"
         # Example: "last year" → (last year Jan 1, last year Dec 31)
         elif "last year" in query_lower:
             last_year = today.year - 1
-            result = (datetime(last_year, 1, 1), datetime(last_year, 12, 31))
+            return (datetime(last_year, 1, 1), datetime(last_year, 12, 31))
 
-        # Cache if this is the current query being parsed
-        if self._cached_query == query:
-            self._cached_date_range = result
-
-        return result
+        return None
 
     def classify_question_type(self, query: str) -> str:
         """
         Classify the question type based on extracted filters and keywords.
-
-        Parses the query first to cache extracted values, avoiding redundant operations.
 
         Args:
             query: User's natural language question.
@@ -256,9 +191,6 @@ class QueryParser:
             Question type: "episode_scoped", "speaker_specific", "temporal",
             "comparative", "factual", "analytical", or "topical".
         """
-        # Parse query first to cache extracted values
-        self.parse(query)
-
         query_lower = query.lower()
 
         # Priority 1: Check for episode-scoped queries
@@ -290,17 +222,12 @@ class QueryParser:
         """
         Extract all filters from a query in a single call.
 
-        Parses the query first to cache extracted values, avoiding redundant operations.
-
         Args:
             query: User's natural language question.
 
         Returns:
             Dictionary with 'episode_number', 'speaker', and 'date_range' keys.
         """
-        # Parse query first to cache extracted values
-        self.parse(query)
-
         return {
             "episode_number": self.extract_episode_number(query),
             "speaker": self.extract_speaker(query),
