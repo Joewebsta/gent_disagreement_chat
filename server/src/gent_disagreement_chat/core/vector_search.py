@@ -115,7 +115,8 @@ class VectorSearch:
 
         Args:
             query: Search query text
-            filters: Dict with 'episode_number', 'speaker', 'date_range' keys
+            filters: Dict with 'episode_number', 'speaker', 'date_range' keys.
+                     'speaker' can be a list of speaker names or a string.
             min_docs: Minimum documents to return
             max_docs: Maximum documents to return
             similarity_threshold: Minimum similarity score
@@ -214,21 +215,22 @@ class VectorSearch:
 
         Args:
             filters: Filter dictionary from QueryParser.extract_filters().
-                     Example: {'episode_number': 180, 'speaker': 'Ricky Ghoshroy', 'date_range': None}
+                     Example: {'episode_number': 180, 'speaker': ['Ricky Ghoshroy'], 'date_range': None}
+                     Speaker can be a list of speaker names or a string.
 
         Returns:
             Tuple of (where_clauses, parameters):
                 - where_clauses: List of SQL WHERE clause fragments (without AND).
-                  Example: ['e.episode_number = %s', 's.name = %s']
+                  Example: ['e.episode_number = %s', 's.name IN (%s, %s)']
                 - parameters: List of values for parameterized query.
-                  Example: [180, 'Ricky Ghoshroy']
+                  Example: [180, 'Ricky Ghoshroy', 'Brendan Kelly']
 
         Data transformation:
-            Input: {'episode_number': 180, 'speaker': 'Ricky Ghoshroy', 'date_range': None}
+            Input: {'episode_number': 180, 'speaker': ['Ricky Ghoshroy', 'Brendan Kelly'], 'date_range': None}
                    ↓
             Output: (
-                ['e.episode_number = %s', 's.name = %s'],
-                [180, 'Ricky Ghoshroy']
+                ['e.episode_number = %s', 's.name IN (%s, %s)'],
+                [180, 'Ricky Ghoshroy', 'Brendan Kelly']
             )
 
         """
@@ -242,11 +244,24 @@ class VectorSearch:
             where_clauses.append("e.episode_number = %s")
             params.append(filters["episode_number"])
 
-        # Note: "guest" and "professor" are special values that may need
-        # different handling in future iterations (partial match, etc.)
-        if filters.get("speaker") is not None:
-            where_clauses.append("s.name = %s")
-            params.append(filters["speaker"])
+        # Handle speaker filter: can be a list or string.
+        speaker = filters.get("speaker")
+        if speaker is not None:
+            # Convert to list if it's a string.
+            if isinstance(speaker, str):
+                speaker_list = [speaker]
+            else:
+                speaker_list = speaker
+
+            # Use IN clause for multiple speakers, equality for single
+            if len(speaker_list) == 1:
+                where_clauses.append("s.name = %s")
+                params.append(speaker_list[0])
+            else:
+                # Build IN clause with placeholders: IN (%s, %s, %s)
+                placeholders = ", ".join(["%s"] * len(speaker_list))
+                where_clauses.append(f"s.name IN ({placeholders})")
+                params.extend(speaker_list)
 
         if filters.get("date_range") is not None:
             start_date, end_date = filters["date_range"]

@@ -7,21 +7,16 @@ metadata-based filtering in vector search.
 
 import re
 from datetime import datetime, timedelta
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 SPEAKER_MAPPINGS = {
     "ricky": "Ricky Ghoshroy",
     "brendan": "Brendan Kelly",
     "ricky ghoshroy": "Ricky Ghoshroy",
     "brendan kelly": "Brendan Kelly",
-}
-
-SPECIAL_SPEAKER_KEYWORDS = {
-    "hosts": None,
-    "host": None,
-    "both": None,
-    "guest": "guest",
-    "professor": "professor",
+    "lydia": "Lydia DePhillis",
+    "lydia dephillis": "Lydia DePhillis",
+    "jack beermann": "Professor Jack Beermann",
 }
 
 # Keywords used for question type classification.
@@ -97,33 +92,33 @@ class QueryParser:
 
         return None
 
-    def extract_speaker(self, query: str) -> Optional[str]:
+    def extract_speaker(self, query: str) -> Optional[List[str]]:
         """
-        Extract speaker name from a natural language query.
+        Extract speaker name(s) from a natural language query.
 
         Args:
             query: User's natural language question.
 
         Returns:
-            Full speaker name for database filtering, or None if no specific speaker mentioned.
+            List of full speaker names for database filtering, or None if no specific speaker mentioned.
+            Returns a list containing all matching speaker names found in the query.
         """
         query_lower = query.lower()
 
-        # First check for special keywords (hosts, guest, etc.)
-        # These take precedence over individual speaker names.
-        for keyword, value in SPECIAL_SPEAKER_KEYWORDS.items():
-            # Use word boundary matching to avoid partial matches
-            if re.search(rf"\b{keyword}\b", query_lower):
-                return value
+        # Collect all matching speaker names
+        matched_speakers = []
+        seen_speakers = set()
 
-        # Then check for individual speaker name mappings
+        # Check for individual speaker name mappings
         for name_variant, full_name in SPEAKER_MAPPINGS.items():
             if re.search(rf"\b{name_variant}\b", query_lower):
-                return full_name
+                # Avoid duplicates (e.g., "ricky" and "ricky ghoshroy" both map to "Ricky Ghoshroy")
+                if full_name not in seen_speakers:
+                    matched_speakers.append(full_name)
+                    seen_speakers.add(full_name)
 
-        print("result", None)
-        print("+++++++++++++++++++++++++++++++++++++++")
-        return None
+        # Return list if we found any speakers, otherwise None
+        return matched_speakers if matched_speakers else None
 
     def extract_date_range(self, query: str) -> Optional[Tuple[datetime, datetime]]:
         """
@@ -199,9 +194,9 @@ class QueryParser:
             return "episode_scoped"
 
         # Priority 2: Check for speaker-specific queries
-        # Note: We check for actual speaker names, not "hosts" which implies both.
         speaker = self.extract_speaker(query)
-        if speaker is not None and speaker not in ["guest", "professor"]:
+        # speaker is now a list or None
+        if speaker is not None and len(speaker) > 0:
             return "speaker_specific"
 
         # Priority 3: Check for temporal queries
@@ -227,6 +222,9 @@ class QueryParser:
 
         Returns:
             Dictionary with 'episode_number', 'speaker', and 'date_range' keys.
+            - 'episode_number': Optional[int] - Episode number if specified
+            - 'speaker': Optional[List[str]] - List of speaker names if specified, None otherwise
+            - 'date_range': Optional[Tuple[datetime, datetime]] - Date range if specified
         """
         return {
             "episode_number": self.extract_episode_number(query),
