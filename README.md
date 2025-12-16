@@ -35,6 +35,7 @@ An intelligent chat application powered by Retrieval-Augmented Generation (RAG) 
 ## Tech Stack
 
 ### Client
+
 - **Framework**: React 19 with TypeScript
 - **Build Tool**: Vite
 - **UI Components**: Radix UI, Tailwind CSS
@@ -43,6 +44,7 @@ An intelligent chat application powered by Retrieval-Augmented Generation (RAG) 
 - **State Management**: React hooks
 
 ### Server
+
 - **Framework**: FastAPI
 - **Language**: Python 3.11+
 - **Database**: PostgreSQL with psycopg2
@@ -117,15 +119,30 @@ EOF
 
 ### Start the Server
 
+**For Development (with auto-reload):**
+
 ```bash
 cd server
-poetry run uvicorn gent_disagreement_chat.main:app --host 0.0.0.0 --port 8000
+poetry run dev
+```
 
-# Or use the Poetry script
+**For Production:**
+
+```bash
+cd server
 poetry run start
 ```
 
+**Manual command (alternative):**
+
+```bash
+cd server
+poetry run uvicorn gent_disagreement_chat.main:app --host 0.0.0.0 --port 8000
+```
+
 The server will be available at `http://localhost:8000`
+
+> **Note:** The `dev` command includes the `--reload` flag, which automatically restarts the server when you save code changes. Use `start` for production deployments where auto-reload is not needed.
 
 ### Start the Client
 
@@ -139,6 +156,7 @@ The client will be available at `http://localhost:5173`
 ### Health Check
 
 Verify the server is running:
+
 ```bash
 curl http://localhost:8000/health
 # Response: {"status":"healthy"}
@@ -190,6 +208,7 @@ gent_disagreement_chat/
 ### Chat Endpoint
 
 **Request:**
+
 ```json
 {
   "messages": [
@@ -217,6 +236,7 @@ The system uses a sophisticated `QueryEnhancer` class that implements:
 ### Vector Search
 
 Vector search is powered by:
+
 - **Embedding Model**: `all-MiniLM-L6-v2` from sentence-transformers
 - **Storage**: PostgreSQL with pgvector extension
 - **Adaptive Thresholding**: Dynamically adjusts similarity thresholds based on score distribution
@@ -225,6 +245,7 @@ Vector search is powered by:
 ### Adaptive Thresholding
 
 The system automatically adjusts similarity thresholds to:
+
 - Ensure minimum document count (default: 3)
 - Limit maximum document count (default: 10)
 - Filter low-quality results (default threshold: 0.6)
@@ -234,20 +255,20 @@ The system automatically adjusts similarity thresholds to:
 
 ### Server (.env)
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `DB_HOST` | PostgreSQL host | Yes |
-| `DB_PORT` | PostgreSQL port | Yes |
-| `DB_USER` | Database user | Yes |
-| `DB_PASSWORD` | Database password | Yes |
-| `DB_NAME` | Database name | Yes |
-| `OPENAI_API_KEY` | OpenAI API key | Yes |
+| Variable         | Description       | Required |
+| ---------------- | ----------------- | -------- |
+| `DB_HOST`        | PostgreSQL host   | Yes      |
+| `DB_PORT`        | PostgreSQL port   | Yes      |
+| `DB_USER`        | Database user     | Yes      |
+| `DB_PASSWORD`    | Database password | Yes      |
+| `DB_NAME`        | Database name     | Yes      |
+| `OPENAI_API_KEY` | OpenAI API key    | Yes      |
 
 ### Client (.env.local)
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `VITE_API_URL` | Backend API URL | Yes |
+| Variable       | Description     | Required |
+| -------------- | --------------- | -------- |
+| `VITE_API_URL` | Backend API URL | Yes      |
 
 ## License
 
