@@ -37,7 +37,7 @@ class RAGService:
     # Format: {question_type: {'min_docs': int, 'max_docs': int, 'threshold': float}}
     ADAPTIVE_PARAMS = {
         # Episode-scoped: Need more docs to cover the full episode context
-        "episode_scoped": {"min_docs": 5, "max_docs": 15, "threshold": 0.5},
+        "episode_scoped": {"min_docs": 5, "max_docs": 15, "threshold": 0.2},
         # Speaker-specific: Moderate coverage for speaker's views
         "speaker_specific": {"min_docs": 3, "max_docs": 10, "threshold": 0.6},
         # Temporal: Search across time period, need decent coverage
