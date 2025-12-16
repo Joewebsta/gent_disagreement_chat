@@ -110,6 +110,10 @@ class RAGService:
                 similarity_threshold=params["threshold"],
             )
 
+            # Check if no segments were found
+            if len(search_results) == 0:
+                return self._generate_no_information_response()
+
             # 5. Format context from search results into structured text.
             # Groups by episode and includes metadata for LLM context.
             formatted_results = self._format_search_results(search_results)
@@ -175,6 +179,23 @@ class RAGService:
         except Exception as e:
             print(f"Error in simple text streaming: {e}")
             yield f"Error: {str(e)}"
+
+    def _generate_no_information_response(self):
+        """
+        Generate a response when no transcript segments are found.
+
+        This method is called when the vector search returns 0 segments,
+        preventing the LLM from hallucinating answers when no context exists.
+
+        Returns:
+            Generator[str]: Yields formatted Markdown message chunks
+        """
+        message = """I couldn't find any relevant information to answer your question.
+
+Try rephrasing your question, or ask about a broader topic from the podcast.
+"""
+        # Yield the complete message (streaming response will handle chunking)
+        yield message
 
     def group_by_episode(self, search_results):
         """Group search results by episode with metadata"""
