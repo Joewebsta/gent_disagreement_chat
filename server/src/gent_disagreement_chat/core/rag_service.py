@@ -197,7 +197,7 @@ Try rephrasing your question, or ask about a broader topic from the podcast.
         # Yield the complete message (streaming response will handle chunking)
         yield message
 
-    def group_by_episode(self, search_results):
+    def _group_by_episode(self, search_results):
         """Group search results by episode with metadata"""
         episode_groups = {}
 
@@ -232,9 +232,7 @@ Try rephrasing your question, or ask about a broader topic from the podcast.
     def _format_search_results(self, search_results):
         """Enhanced context formatting with hierarchical organization"""
 
-        # Group by episode
-        grouped_results = self.group_by_episode(search_results)
-        # print("grouped_results", grouped_results)
+        grouped_results = self._group_by_episode(search_results)
 
         formatted_result = ""
         for episode_group in grouped_results:
