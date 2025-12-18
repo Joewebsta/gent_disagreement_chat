@@ -1,7 +1,5 @@
 ### TODO
 
-- WHERE I LEFT OFF: Stress testing retrieval improvements via chat interface using "sample_questions.py" questions
-
 - queryParser SPEAKER_MAPPINGS object.
 
   - What if there are multiple speakers with the same name?
