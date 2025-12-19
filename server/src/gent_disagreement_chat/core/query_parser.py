@@ -175,6 +175,52 @@ class QueryParser:
 
         return None
 
+    def extract_latest_episode_count(self, query: str) -> Optional[int]:
+        """
+        Extract count of latest episodes from a natural language query.
+
+        Detects patterns like "latest episode", "latest 3 episodes", "most recent episode", etc.
+
+        Args:
+            query: User's natural language question.
+
+        Returns:
+            Number of latest episodes requested (1 for "latest episode", N for "latest N episodes"),
+            or None if no "latest" pattern is found.
+        """
+        query_lower = query.lower()
+
+        # Pattern: "latest N episodes" or "latest N episode"
+        # Example: "latest 3 episodes" → returns 3
+        latest_n_match = re.search(r"latest\s+(\d+)\s+episodes?", query_lower)
+        if latest_n_match:
+            return int(latest_n_match.group(1))
+
+        # Pattern: "latest episode" or "latest ep"
+        # Example: "latest episode" → returns 1
+        if re.search(r"latest\s+episode", query_lower):
+            return 1
+
+        # Pattern: "most recent N episodes" or "most recent episode"
+        most_recent_n_match = re.search(
+            r"most\s+recent\s+(\d+)\s+episodes?", query_lower
+        )
+        if most_recent_n_match:
+            return int(most_recent_n_match.group(1))
+
+        if re.search(r"most\s+recent\s+episode", query_lower):
+            return 1
+
+        # Pattern: "newest N episodes" or "newest episode"
+        newest_n_match = re.search(r"newest\s+(\d+)\s+episodes?", query_lower)
+        if newest_n_match:
+            return int(newest_n_match.group(1))
+
+        if re.search(r"newest\s+episode", query_lower):
+            return 1
+
+        return None
+
     def classify_question_type(self, query: str) -> str:
         """
         Classify the question type based on extracted filters and keywords.
@@ -191,6 +237,10 @@ class QueryParser:
         # Priority 1: Check for episode-scoped queries
         # These are the most constrained and should be handled first.
         if self.extract_episode_number(query) is not None:
+            return "episode_scoped"
+
+        # Also check for "latest episode" queries - these should be treated as episode-scoped
+        if self.extract_latest_episode_count(query) is not None:
             return "episode_scoped"
 
         # Priority 2: Check for speaker-specific queries
@@ -221,13 +271,15 @@ class QueryParser:
             query: User's natural language question.
 
         Returns:
-            Dictionary with 'episode_number', 'speaker', and 'date_range' keys.
+            Dictionary with 'episode_number', 'speaker', 'date_range', and 'latest_episodes_count' keys.
             - 'episode_number': Optional[int] - Episode number if specified
             - 'speaker': Optional[List[str]] - List of speaker names if specified, None otherwise
             - 'date_range': Optional[Tuple[datetime, datetime]] - Date range if specified
+            - 'latest_episodes_count': Optional[int] - Number of latest episodes requested (1 for "latest episode", N for "latest N episodes"), None otherwise
         """
         return {
             "episode_number": self.extract_episode_number(query),
             "speaker": self.extract_speaker(query),
             "date_range": self.extract_date_range(query),
+            "latest_episodes_count": self.extract_latest_episode_count(query),
         }

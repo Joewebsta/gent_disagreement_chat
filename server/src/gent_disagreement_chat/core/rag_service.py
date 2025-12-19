@@ -1,8 +1,9 @@
 import os
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from openai import OpenAI
 
+from .database_manager import DatabaseManager
 from .query_parser import QueryParser
 from .vector_search import VectorSearch
 
@@ -62,6 +63,7 @@ class RAGService:
         """
         self.vector_search = VectorSearch(database_name)
         self.query_parser = QueryParser()
+        self.database_manager = DatabaseManager(database=database_name)
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
     def ask_question_text_stream(
@@ -91,6 +93,31 @@ class RAGService:
             # 1. Parse query to extract metadata filters.
             # This enables episode-scoped, speaker-specific, and temporal filtering.
             filters = self.query_parser.extract_filters(question)
+
+            # 1.5. Resolve "latest episode" references to actual episode numbers.
+            # If user asks for "latest episode" or "latest N episodes", resolve to actual episode numbers.
+            latest_episodes_count = filters.get("latest_episodes_count")
+            if latest_episodes_count is not None:
+                # Only resolve if no explicit episode number was provided
+                if filters.get("episode_number") is None:
+                    if latest_episodes_count == 1:
+                        # Single latest episode
+                        max_episode = self.database_manager.get_max_episode_number()
+                        if max_episode is not None:
+                            filters["episode_number"] = max_episode
+                    else:
+                        # Multiple latest episodes
+                        latest_episodes = (
+                            self.database_manager.get_latest_episode_numbers(
+                                latest_episodes_count
+                            )
+                        )
+                        if latest_episodes:
+                            # Store as list for multi-episode filtering
+                            filters["episode_number"] = latest_episodes
+
+                # Remove latest_episodes_count from filters as it's not a SQL filter
+                filters.pop("latest_episodes_count", None)
 
             # 2. Classify question type for adaptive retrieval parameters.
             # Different question types benefit from different retrieval strategies.
@@ -128,7 +155,9 @@ class RAGService:
             print(f"Error in RAG service: {e}")
             raise e
 
-    def _get_adaptive_params(self, question_type: str) -> Dict[str, Any]:
+    def _get_adaptive_params(
+        self, question_type: str, filters: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """
         Get retrieval parameters adapted to the question type and filters.
 
@@ -136,11 +165,13 @@ class RAGService:
         - Episode-scoped queries need more documents to cover the full episode
         - Factual queries need fewer, more precise results
         - Analytical queries need more context for deep analysis
+        - Multi-episode queries need more documents to cover multiple episodes
 
         Args:
             question_type: Classification from QueryParser.classify_question_type().
                            One of: 'episode_scoped', 'speaker_specific', 'temporal',
                            'comparative', 'factual', 'analytical', 'topical'
+            filters: Optional filter dictionary to check for multi-episode queries
 
         Returns:
             dict: Retrieval parameters with structure:
@@ -161,7 +192,24 @@ class RAGService:
         )
 
         # Return a copy to avoid mutating the class constant
-        return dict(params)
+        params = dict(params)
+
+        # Adjust parameters for multi-episode queries
+        if filters:
+            episode_number = filters.get("episode_number")
+            # Check if episode_number is a list (multiple episodes)
+            if isinstance(episode_number, list) and len(episode_number) > 1:
+                # Increase max_docs to retrieve more segments across multiple episodes
+                # Use a multiplier of 1.5x per episode (minimum 1.5x for 2 episodes)
+                episode_count = len(episode_number)
+                multiplier = max(
+                    1.5, episode_count * 0.75
+                )  # At least 1.5x, up to 0.75x per episode
+                params["max_docs"] = int(params["max_docs"] * multiplier)
+                # Also increase min_docs proportionally
+                params["min_docs"] = int(params["min_docs"] * multiplier)
+
+        return params
 
     def _generate_simple_text_stream(self, prompt, model):
         """Generate simple text stream compatible with AI SDK TextStreamChatTransport"""

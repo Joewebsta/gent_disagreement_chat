@@ -240,9 +240,19 @@ class VectorSearch:
         where_clauses = []
         params = []
 
-        if filters.get("episode_number") is not None:
-            where_clauses.append("e.episode_number = %s")
-            params.append(filters["episode_number"])
+        # Handle episode_number filter: can be a single int or a list of ints
+        episode_number = filters.get("episode_number")
+        if episode_number is not None:
+            if isinstance(episode_number, list):
+                # Multiple episodes: use IN clause
+                if len(episode_number) > 0:
+                    placeholders = ", ".join(["%s"] * len(episode_number))
+                    where_clauses.append(f"e.episode_number IN ({placeholders})")
+                    params.extend(episode_number)
+            else:
+                # Single episode: use equality
+                where_clauses.append("e.episode_number = %s")
+                params.append(episode_number)
 
         # Handle speaker filter: can be a list or string.
         speaker = filters.get("speaker")
