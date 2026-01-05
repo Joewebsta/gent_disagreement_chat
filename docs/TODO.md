@@ -1,5 +1,6 @@
 ### TODO
 
+- SQLAlchemy + Alembic for database management and migrations
 - queryParser SPEAKER_MAPPINGS object.
 
   - What if there are multiple speakers with the same name?

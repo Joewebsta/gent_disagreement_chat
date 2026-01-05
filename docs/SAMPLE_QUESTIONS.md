@@ -37,6 +37,16 @@
 - “What was discussed about Nepal in episode 182?”
   - Verdict 1: ✅ Good
 
+## Recent/latest episodes
+
+- "Summarize the latest episode"
+  - Verdict 1: ✅ Good
+- Summarize the most recent 3 episodes
+  - Verdict 1: ✅ Good
+- Summarize the most revent 5 episodes
+  - Verdict 1: 😤 Ugly
+  - Only 3 episodes exist in the database. As a result it hallucinated the 2 non-existant episodes
+
 ## Multi-Episode Topical Questions
 
 - “What are the hosts' views on Trump's use of presidential power across all episodes?”
@@ -47,7 +57,7 @@
 
 ## Speaker-Specific Questions
 
-- Who is Professor Jack Beermann
+- Who is Professor Jack Beermann?
   - Verdict 1: 😤 Ugly
   - Returns 3 low similarity results... Do I need to save descriptions of guests somewhere? Send this info to the LLM?
 - “What does Ricky think about gerrymandering and redistricting?”
