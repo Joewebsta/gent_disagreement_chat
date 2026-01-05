@@ -1,5 +1,5 @@
 import os
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 import psycopg2
 from dotenv import load_dotenv
@@ -95,3 +95,32 @@ class DatabaseManager:
         except Exception as e:
             print(f"Error getting latest episode numbers: {e}")
             return []
+
+    def get_episode_summaries(
+        self, episode_numbers: List[int]
+    ) -> Dict[int, Optional[str]]:
+        """Get summaries for multiple episodes by episode number."""
+        if not episode_numbers:
+            return {}
+
+        try:
+            # Build parameterized query with placeholders
+            placeholders = ", ".join(["%s"] * len(episode_numbers))
+            query = f"""
+                SELECT episode_number, summary
+                FROM episodes
+                WHERE episode_number IN ({placeholders})
+            """
+            results = self.execute_query(query, tuple(episode_numbers))
+
+            # Build dictionary mapping episode_number -> summary
+            summaries_dict = {}
+            for row in results:
+                summaries_dict[row["episode_number"]] = row[
+                    "summary"
+                ]  # Will be None if NULL in database
+
+            return summaries_dict
+        except Exception as e:
+            print(f"Error getting episode summaries: {e}")
+            return {}

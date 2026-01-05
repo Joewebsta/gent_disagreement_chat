@@ -282,11 +282,22 @@ Try rephrasing your question, or ask about a broader topic from the podcast.
 
         grouped_results = self._group_by_episode(search_results)
 
+        # Extract unique episode numbers and fetch summaries
+        episode_numbers = [group["episode"] for group in grouped_results]
+        summaries = self.database_manager.get_episode_summaries(episode_numbers)
+
+        # Add summaries to episode groups
+        for group in grouped_results:
+            group["summary"] = summaries.get(group["episode"])
+
         formatted_result = ""
         for episode_group in grouped_results:
             formatted_result += (
                 f"## Episode {episode_group['episode']}: {episode_group['title']}\n"
             )
+            # Include summary if available
+            if episode_group.get("summary"):
+                formatted_result += f"**Summary**: {episode_group['summary']}\n\n"
             formatted_result += f"**Relevance**: {episode_group['avg_similarity']:.2f} (Published: {episode_group['date_published']})\n\n"
 
             for result in episode_group["segments"]:
